@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administration Base de Données</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            margin-right: 5px;
+            border-radius: 5px 5px 0 0;
+        }
+        .tab.active {
+            background-color: #3498db;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .error {
+            color: red;
+            padding: 10px;
+            background-color: #ffeeee;
+            border: 1px solid #ffcccc;
+            border-radius: 4px;
+        }
+        .refresh-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        .refresh-btn:hover {
+            background-color: #2980b9;
+        }
+        .timestamp {
+            font-size: 12px;
+            color: #777;
+            margin-top: 5px;
+            font-style: italic;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #3498db;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-link">← Retour à l'application</a>
+    <h1>Administration Base de Données</h1>
+    
+    <button id="refresh-data" class="refresh-btn">Actualiser les données</button>
+    <div id="timestamp" class="timestamp"></div>
+    
+    <div class="tabs">
+        <div class="tab active" data-tab="users">Utilisateurs</div>
+        <div class="tab" data-tab="events">Événements</div>
+        <div class="tab" data-tab="participants">Participants</div>
+    </div>
+    
+    <div id="users" class="tab-content active">
+        <h2>Table des Utilisateurs</h2>
+        <div id="users-data"></div>
+    </div>
+    
+    <div id="events" class="tab-content">
+        <h2>Table des Événements</h2>
+        <div id="events-data"></div>
+    </div>
+    
+    <div id="participants" class="tab-content">
+        <h2>Table des Participants</h2>
+        <div id="participants-data"></div>
+    </div>
+    
+    <script>
+        // Configuration
+        const API_URL = 'http://localhost:3000/api';
+        
+        // DOM elements
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const refreshBtn = document.getElementById('refresh-data');
+        const timestampEl = document.getElementById('timestamp');
+        
+        // Switch tabs
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active class from all tabs and contents
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                
+                // Add active class to clicked tab and corresponding content
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+        
+        // Fetch data from the database
+        async function fetchData() {
+            try {
+                // Update timestamp
+                const now = new Date();
+                timestampEl.textContent = `Dernière actualisation: ${now.toLocaleString()}`;
+                
+                // Fetch users
+                const usersResponse = await fetch(`${API_URL}/admin/db/users`);
+                if (!usersResponse.ok) throw new Error(`Erreur lors du chargement des utilisateurs: ${usersResponse.statusText}`);
+                const users = await usersResponse.json();
+                displayUsers(users);
+                
+                // Fetch events
+                const eventsResponse = await fetch(`${API_URL}/admin/db/events`);
+                if (!eventsResponse.ok) throw new Error(`Erreur lors du chargement des événements: ${eventsResponse.statusText}`);
+                const events = await eventsResponse.json();
+                displayEvents(events);
+                
+                // Fetch participants
+                const participantsResponse = await fetch(`${API_URL}/admin/db/participants`);
+                if (!participantsResponse.ok) throw new Error(`Erreur lors du chargement des participants: ${participantsResponse.statusText}`);
+                const participants = await participantsResponse.json();
+                displayParticipants(participants);
+                
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                document.querySelectorAll('[id$="-data"]').forEach(el => {
+                    el.innerHTML = `<div class="error">${error.message}</div>`;
+                });
+            }
+        }
+        
+        // Display users in a table
+        function displayUsers(users) {
+            const usersData = document.getElementById('users-data');
+            
+            if (users.length === 0) {
+                usersData.innerHTML = '<p>Aucun utilisateur trouvé.</p>';
+                return;
+            }
+            
+            let html = '<table>';
+            html += '<tr><th>ID</th><th>Email</th><th>Prénom</th><th>Nom</th><th>Vérifié</th><th>Code</th><th>Photo</th><th>Date Création</th></tr>';
+            
+            users.forEach(user => {
+                html += `<tr>
+                    <td>${user.id}</td>
+                    <td>${user.email}</td>
+                    <td>${user.firstName}</td>
+                    <td>${user.lastName}</td>
+                    <td>${user.isVerified ? 'Oui' : 'Non'}</td>
+                    <td>${user.verificationCode || '-'}</td>
+                    <td>${user.profilePicture ? '<img src="/uploads/' + user.profilePicture + '" width="50">' : '-'}</td>
+                    <td>${new Date(user.createdAt).toLocaleString()}</td>
+                </tr>`;
+            });
+            
+            html += '</table>';
+            usersData.innerHTML = html;
+        }
+        
+        // Display events in a table
+        function displayEvents(events) {
+            const eventsData = document.getElementById('events-data');
+            
+            if (events.length === 0) {
+                eventsData.innerHTML = '<p>Aucun événement trouvé.</p>';
+                return;
+            }
+            
+            let html = '<table>';
+            html += '<tr><th>ID</th><th>Nom</th><th>Lieu</th><th>Point de départ</th><th>Date</th><th>Durée (h)</th><th>Difficulté</th><th>Créé par</th><th>Date Création</th></tr>';
+            
+            events.forEach(event => {
+                html += `<tr>
+                    <td>${event.id}</td>
+                    <td>${event.name}</td>
+                    <td>${event.location}</td>
+                    <td>${event.startPoint}</td>
+                    <td>${new Date(event.date).toLocaleString()}</td>
+                    <td>${event.duration || '-'}</td>
+                    <td>${event.difficulty || '-'}</td>
+                    <td>${event.createdBy || '-'}</td>
+                    <td>${new Date(event.createdAt).toLocaleString()}</td>
+                </tr>`;
+            });
+            
+            html += '</table>';
+            eventsData.innerHTML = html;
+        }
+        
+        // Display participants in a table
+        function displayParticipants(participants) {
+            const participantsData = document.getElementById('participants-data');
+            
+            if (participants.length === 0) {
+                participantsData.innerHTML = '<p>Aucun participant trouvé.</p>';
+                return;
+            }
+            
+            let html = '<table>';
+            html += '<tr><th>ID</th><th>Utilisateur ID</th><th>Événement ID</th><th>Statut</th><th>Date Inscription</th></tr>';
+            
+            participants.forEach(participant => {
+                html += `<tr>
+                    <td>${participant.id}</td>
+                    <td>${participant.userId}</td>
+                    <td>${participant.eventId}</td>
+                    <td>${participant.status}</td>
+                    <td>${new Date(participant.registeredAt).toLocaleString()}</td>
+                </tr>`;
+            });
+            
+            html += '</table>';
+            participantsData.innerHTML = html;
+        }
+        
+        // Refresh data button
+        refreshBtn.addEventListener('click', fetchData);
+        
+        // Initial data load
+        fetchData();
+    </script>
+</body>
+</html> 

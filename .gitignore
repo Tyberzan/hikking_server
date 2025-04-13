@@ -1,0 +1,23 @@
+# Dépendances
+node_modules/
+package-lock.json
+
+# Environnement
+.env
+
+# Base de données SQLite
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Répertoire de téléchargement
+uploads/
+
+# Système d'exploitation
+.DS_Store
+Thumbs.db 

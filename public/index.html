@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des Randonnées</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .card {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            flex: 1;
+            min-width: 300px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        h2 {
+            color: #3498db;
+            margin-top: 0;
+        }
+        input, select, button, textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .event-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        .event-card h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .event-card p {
+            margin: 5px 0;
+        }
+        .event-card button {
+            margin-top: 10px;
+        }
+        .hidden {
+            display: none;
+        }
+        .logout-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: auto;
+        }
+        .success {
+            color: green;
+            margin: 10px 0;
+        }
+        .error {
+            color: red;
+            margin: 10px 0;
+        }
+        #event-details {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Application de Gestion des Randonnées</h1>
+    
+    <button id="logout-btn" class="logout-btn hidden">Déconnexion</button>
+    
+    <div id="auth-container" class="container">
+        <div class="card">
+            <h2>Connexion</h2>
+            <form id="login-form">
+                <input type="email" id="login-email" placeholder="Email" required>
+                <input type="password" id="login-password" placeholder="Mot de passe" required>
+                <button type="submit">Se connecter</button>
+                <div id="login-message"></div>
+            </form>
+        </div>
+        
+        <div class="card">
+            <h2>Inscription</h2>
+            <form id="register-form">
+                <input type="text" id="register-firstName" placeholder="Prénom" required>
+                <input type="text" id="register-lastName" placeholder="Nom" required>
+                <input type="email" id="register-email" placeholder="Email" required>
+                <input type="password" id="register-password" placeholder="Mot de passe (min. 6 caractères)" required minlength="6">
+                <button type="submit">S'inscrire</button>
+                <div id="register-message"></div>
+            </form>
+        </div>
+        
+        <div id="verification-card" class="card hidden">
+            <h2>Vérification de l'email</h2>
+            <form id="verification-form">
+                <input type="email" id="verification-email" placeholder="Email" required>
+                <input type="text" id="verification-code" placeholder="Code de vérification" required>
+                <button type="submit">Vérifier</button>
+                <div id="verification-message"></div>
+            </form>
+            
+            <hr style="margin: 20px 0;">
+            
+            <h3>Test de l'envoi d'email</h3>
+            <p>Si vous ne recevez pas le code de vérification, vous pouvez tester la configuration email :</p>
+            <div class="test-email-container">
+                <input type="email" id="test-email" placeholder="Votre email pour le test">
+                <button id="send-test-email">Envoyer un email de test</button>
+                <div id="test-email-message"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="app-container" class="hidden">
+        <div class="container">
+            <div class="card">
+                <h2>Créer une randonnée</h2>
+                <form id="create-event-form">
+                    <input type="text" id="event-name" placeholder="Nom de l'événement" required>
+                    <input type="text" id="event-location" placeholder="Lieu" required>
+                    <input type="text" id="event-startPoint" placeholder="Point de départ" required>
+                    <input type="datetime-local" id="event-date" required>
+                    <input type="number" id="event-duration" placeholder="Durée (en heures)" min="1" required>
+                    <select id="event-difficulty" required>
+                        <option value="">Sélectionner la difficulté</option>
+                        <option value="facile">Facile</option>
+                        <option value="moyenne">Moyenne</option>
+                        <option value="difficile">Difficile</option>
+                    </select>
+                    <textarea id="event-description" placeholder="Description" rows="4"></textarea>
+                    <button type="submit">Créer l'événement</button>
+                    <div id="create-event-message"></div>
+                </form>
+            </div>
+            
+            <div class="card">
+                <h2>Liste des randonnées</h2>
+                <div class="filters">
+                    <h3>Filtres</h3>
+                    <input type="date" id="filter-dateFrom" placeholder="Date de début">
+                    <input type="date" id="filter-dateTo" placeholder="Date de fin">
+                    <select id="filter-difficulty">
+                        <option value="">Toutes les difficultés</option>
+                        <option value="facile">Facile</option>
+                        <option value="moyenne">Moyenne</option>
+                        <option value="difficile">Difficile</option>
+                    </select>
+                    <button id="apply-filters">Appliquer les filtres</button>
+                </div>
+                <div id="events-list"></div>
+                <div id="event-details" class="hidden">
+                    <h3>Détails de l'événement</h3>
+                    <div id="event-details-content"></div>
+                    <div id="event-participants"></div>
+                    <button id="register-event-btn">S'inscrire</button>
+                    <button id="cancel-registration-btn" class="hidden">Annuler mon inscription</button>
+                    <button id="back-to-list-btn">Retour à la liste</button>
+                    <div id="event-action-message"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_URL = 'http://localhost:3000/api';
+        let token = localStorage.getItem('token');
+        let userData = JSON.parse(localStorage.getItem('userData') || '{}');
+        let currentEventId = null;
+        
+        // DOM elements
+        const authContainer = document.getElementById('auth-container');
+        const appContainer = document.getElementById('app-container');
+        const logoutBtn = document.getElementById('logout-btn');
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const verificationCard = document.getElementById('verification-card');
+        const verificationForm = document.getElementById('verification-form');
+        const createEventForm = document.getElementById('create-event-form');
+        const eventsList = document.getElementById('events-list');
+        const eventDetails = document.getElementById('event-details');
+        const applyFiltersBtn = document.getElementById('apply-filters');
+        const registerEventBtn = document.getElementById('register-event-btn');
+        const cancelRegistrationBtn = document.getElementById('cancel-registration-btn');
+        const backToListBtn = document.getElementById('back-to-list-btn');
+        
+        // Check if user is authenticated
+        function checkAuth() {
+            if (token) {
+                authContainer.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                logoutBtn.classList.remove('hidden');
+                fetchEvents();
+            } else {
+                authContainer.classList.remove('hidden');
+                appContainer.classList.add('hidden');
+                logoutBtn.classList.add('hidden');
+            }
+        }
+        
+        // Login form submission
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const messageEl = document.getElementById('login-message');
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    if (data.needsVerification) {
+                        messageEl.textContent = 'Veuillez vérifier votre email avant de vous connecter.';
+                        messageEl.className = 'error';
+                        verificationCard.classList.remove('hidden');
+                        document.getElementById('verification-email').value = email;
+                    } else {
+                        messageEl.textContent = data.message || 'Erreur de connexion';
+                        messageEl.className = 'error';
+                    }
+                    return;
+                }
+                
+                // Save token and user data
+                token = data.token;
+                userData = data.user;
+                localStorage.setItem('token', token);
+                localStorage.setItem('userData', JSON.stringify(userData));
+                
+                messageEl.textContent = 'Connexion réussie!';
+                messageEl.className = 'success';
+                
+                // Reset form and check auth
+                loginForm.reset();
+                checkAuth();
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                messageEl.textContent = 'Erreur de connexion au serveur';
+                messageEl.className = 'error';
+            }
+        });
+        
+        // Register form submission
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const firstName = document.getElementById('register-firstName').value;
+            const lastName = document.getElementById('register-lastName').value;
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const messageEl = document.getElementById('register-message');
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ firstName, lastName, email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    messageEl.textContent = data.message || 'Erreur d\'inscription';
+                    messageEl.className = 'error';
+                    return;
+                }
+                
+                messageEl.textContent = 'Inscription réussie! Veuillez vérifier votre email.';
+                messageEl.className = 'success';
+                
+                // Show verification form
+                verificationCard.classList.remove('hidden');
+                document.getElementById('verification-email').value = email;
+                
+                // Reset form
+                registerForm.reset();
+                
+            } catch (error) {
+                console.error('Register error:', error);
+                messageEl.textContent = 'Erreur de connexion au serveur';
+                messageEl.className = 'error';
+            }
+        });
+        
+        // Verification form submission
+        verificationForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('verification-email').value;
+            const code = document.getElementById('verification-code').value;
+            const messageEl = document.getElementById('verification-message');
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/verify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, code })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    messageEl.textContent = data.message || 'Erreur de vérification';
+                    messageEl.className = 'error';
+                    return;
+                }
+                
+                messageEl.textContent = 'Email vérifié avec succès! Vous pouvez maintenant vous connecter.';
+                messageEl.className = 'success';
+                
+                // Hide verification form after successful verification
+                setTimeout(() => {
+                    verificationCard.classList.add('hidden');
+                    verificationForm.reset();
+                }, 3000);
+                
+            } catch (error) {
+                console.error('Verification error:', error);
+                messageEl.textContent = 'Erreur de connexion au serveur';
+                messageEl.className = 'error';
+            }
+        });
+        
+        // Create event form submission
+        createEventForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('event-name').value;
+            const location = document.getElementById('event-location').value;
+            const startPoint = document.getElementById('event-startPoint').value;
+            const date = document.getElementById('event-date').value;
+            const duration = document.getElementById('event-duration').value;
+            const difficulty = document.getElementById('event-difficulty').value;
+            const description = document.getElementById('event-description').value;
+            const messageEl = document.getElementById('create-event-message');
+            
+            try {
+                const response = await fetch(`${API_URL}/events`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ 
+                        name, 
+                        location, 
+                        startPoint, 
+                        date, 
+                        duration: parseInt(duration),
+                        difficulty,
+                        description
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    messageEl.textContent = data.message || 'Erreur de création d\'événement';
+                    messageEl.className = 'error';
+                    return;
+                }
+                
+                messageEl.textContent = 'Événement créé avec succès!';
+                messageEl.className = 'success';
+                
+                // Reset form and refresh events list
+                createEventForm.reset();
+                fetchEvents();
+                
+            } catch (error) {
+                console.error('Create event error:', error);
+                messageEl.textContent = 'Erreur de connexion au serveur';
+                messageEl.className = 'error';
+            }
+        });
+        
+        // Fetch events with optional filters
+        async function fetchEvents(filters = {}) {
+            try {
+                let url = `${API_URL}/events`;
+                
+                // Add filters to URL if provided
+                const queryParams = new URLSearchParams();
+                if (filters.dateFrom) queryParams.append('dateFrom', filters.dateFrom);
+                if (filters.dateTo) queryParams.append('dateTo', filters.dateTo);
+                if (filters.difficulty) queryParams.append('difficulty', filters.difficulty);
+                
+                if (queryParams.toString()) {
+                    url += `?${queryParams.toString()}`;
+                }
+                
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error('Erreur lors du chargement des événements');
+                }
+                
+                const events = await response.json();
+                displayEvents(events);
+                
+            } catch (error) {
+                console.error('Fetch events error:', error);
+                eventsList.innerHTML = `<p class="error">Erreur de chargement des événements: ${error.message}</p>`;
+            }
+        }
+        
+        // Display events in the list
+        function displayEvents(events) {
+            if (events.length === 0) {
+                eventsList.innerHTML = '<p>Aucun événement trouvé</p>';
+                return;
+            }
+            
+            eventsList.innerHTML = '';
+            events.forEach(event => {
+                const eventDate = new Date(event.date);
+                const formattedDate = eventDate.toLocaleDateString('fr-FR') + ' à ' + eventDate.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+                
+                const eventCard = document.createElement('div');
+                eventCard.className = 'event-card';
+                eventCard.innerHTML = `
+                    <h3>${event.name}</h3>
+                    <p><strong>Lieu:</strong> ${event.location}</p>
+                    <p><strong>Date:</strong> ${formattedDate}</p>
+                    <p><strong>Difficulté:</strong> ${event.difficulty || 'Non spécifiée'}</p>
+                    <button class="view-details-btn" data-id="${event.id}">Voir détails</button>
+                `;
+                eventsList.appendChild(eventCard);
+                
+                // Add event listener to the button
+                const detailsBtn = eventCard.querySelector('.view-details-btn');
+                detailsBtn.addEventListener('click', () => {
+                    fetchEventDetails(event.id);
+                });
+            });
+        }
+        
+        // Fetch and display details for a specific event
+        async function fetchEventDetails(eventId) {
+            try {
+                const response = await fetch(`${API_URL}/events/${eventId}`);
+                
+                if (!response.ok) {
+                    throw new Error('Erreur lors du chargement des détails de l\'événement');
+                }
+                
+                const event = await response.json();
+                currentEventId = eventId;
+                
+                // Display event details
+                const detailsContent = document.getElementById('event-details-content');
+                const eventDate = new Date(event.date);
+                const formattedDate = eventDate.toLocaleDateString('fr-FR') + ' à ' + eventDate.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+                
+                detailsContent.innerHTML = `
+                    <h3>${event.name}</h3>
+                    <p><strong>Lieu:</strong> ${event.location}</p>
+                    <p><strong>Point de départ:</strong> ${event.startPoint}</p>
+                    <p><strong>Date:</strong> ${formattedDate}</p>
+                    <p><strong>Durée:</strong> ${event.duration} heure(s)</p>
+                    <p><strong>Difficulté:</strong> ${event.difficulty || 'Non spécifiée'}</p>
+                    <p><strong>Description:</strong> ${event.description || 'Aucune description'}</p>
+                    <p><strong>Organisateur:</strong> ${event.organizer ? `${event.organizer.firstName} ${event.organizer.lastName}` : 'Inconnu'}</p>
+                `;
+                
+                // Fetch and display participants
+                fetchEventParticipants(eventId);
+                
+                // Show event details section and hide events list
+                eventsList.classList.add('hidden');
+                eventDetails.classList.remove('hidden');
+                
+                // Check if user is already registered for this event
+                if (event.participants && event.participants.some(p => p.id === userData.id)) {
+                    registerEventBtn.classList.add('hidden');
+                    cancelRegistrationBtn.classList.remove('hidden');
+                } else {
+                    registerEventBtn.classList.remove('hidden');
+                    cancelRegistrationBtn.classList.add('hidden');
+                }
+                
+            } catch (error) {
+                console.error('Fetch event details error:', error);
+                eventsList.innerHTML += `<p class="error">Erreur: ${error.message}</p>`;
+            }
+        }
+        
+        // Fetch and display participants for an event
+        async function fetchEventParticipants(eventId) {
+            try {
+                const response = await fetch(`${API_URL}/events/${eventId}/participants`);
+                
+                if (!response.ok) {
+                    throw new Error('Erreur lors du chargement des participants');
+                }
+                
+                const participants = await response.json();
+                const participantsEl = document.getElementById('event-participants');
+                
+                if (participants.length === 0) {
+                    participantsEl.innerHTML = '<p>Aucun participant inscrit.</p>';
+                    return;
+                }
+                
+                participantsEl.innerHTML = '<h4>Participants:</h4><ul></ul>';
+                const participantsList = participantsEl.querySelector('ul');
+                
+                participants.forEach(participant => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = `${participant.firstName} ${participant.lastName}`;
+                    participantsList.appendChild(listItem);
+                });
+                
+            } catch (error) {
+                console.error('Fetch participants error:', error);
+                document.getElementById('event-participants').innerHTML = `<p class="error">Erreur: ${error.message}</p>`;
+            }
+        }
+        
+        // Apply filters button click handler
+        applyFiltersBtn.addEventListener('click', () => {
+            const dateFrom = document.getElementById('filter-dateFrom').value;
+            const dateTo = document.getElementById('filter-dateTo').value;
+            const difficulty = document.getElementById('filter-difficulty').value;
+            
+            fetchEvents({ dateFrom, dateTo, difficulty });
+        });
+        
+        // Register for event button click handler
+        registerEventBtn.addEventListener('click', async () => {
+            if (!currentEventId) return;
+            
+            const messageEl = document.getElementById('event-action-message');
+            
+            try {
+                const response = await fetch(`${API_URL}/events/${currentEventId}/register`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    messageEl.textContent = data.message || 'Erreur lors de l\'inscription';
+                    messageEl.className = 'error';
+                    return;
+                }
+                
+                messageEl.textContent = 'Inscription réussie!';
+                messageEl.className = 'success';
+                
+                // Update buttons and refresh participants
+                registerEventBtn.classList.add('hidden');
+                cancelRegistrationBtn.classList.remove('hidden');
+                fetchEventParticipants(currentEventId);
+                
+            } catch (error) {
+                console.error('Register for event error:', error);
+                messageEl.textContent = 'Erreur de connexion au serveur';
+                messageEl.className = 'error';
+            }
+        });
+        
+        // Cancel registration button click handler
+        cancelRegistrationBtn.addEventListener('click', async () => {
+            if (!currentEventId) return;
+            
+            const messageEl = document.getElementById('event-action-message');
+            
+            try {
+                const response = await fetch(`${API_URL}/events/${currentEventId}/cancel`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    messageEl.textContent = data.message || 'Erreur lors de l\'annulation';
+                    messageEl.className = 'error';
+                    return;
+                }
+                
+                messageEl.textContent = 'Inscription annulée avec succès!';
+                messageEl.className = 'success';
+                
+                // Update buttons and refresh participants
+                registerEventBtn.classList.remove('hidden');
+                cancelRegistrationBtn.classList.add('hidden');
+                fetchEventParticipants(currentEventId);
+                
+            } catch (error) {
+                console.error('Cancel registration error:', error);
+                messageEl.textContent = 'Erreur de connexion au serveur';
+                messageEl.className = 'error';
+            }
+        });
+        
+        // Back to list button click handler
+        backToListBtn.addEventListener('click', () => {
+            eventsList.classList.remove('hidden');
+            eventDetails.classList.add('hidden');
+            document.getElementById('event-action-message').textContent = '';
+            currentEventId = null;
+        });
+        
+        // Logout button click handler
+        logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('userData');
+            token = null;
+            userData = {};
+            checkAuth();
+        });
+        
+        // Initialize the app
+        checkAuth();
+        
+        // Test email functionality
+        document.getElementById('send-test-email').addEventListener('click', async () => {
+            const emailInput = document.getElementById('test-email');
+            const email = emailInput.value;
+            const messageEl = document.getElementById('test-email-message');
+            
+            if (!email) {
+                messageEl.textContent = 'Veuillez entrer une adresse email';
+                messageEl.className = 'error';
+                return;
+            }
+            
+            try {
+                messageEl.textContent = 'Envoi en cours...';
+                messageEl.className = '';
+                
+                const response = await fetch(`${API_URL}/auth/test-email`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    messageEl.textContent = data.message || 'Erreur lors de l\'envoi de l\'email de test';
+                    messageEl.className = 'error';
+                    return;
+                }
+                
+                messageEl.textContent = `Email de test envoyé avec succès! Le code de test est: ${data.codeForTest}`;
+                messageEl.className = 'success';
+                
+                // Pré-remplir le champ de code de vérification avec le code de test
+                document.getElementById('verification-code').value = data.codeForTest;
+                
+            } catch (error) {
+                console.error('Test email error:', error);
+                messageEl.textContent = 'Erreur de connexion au serveur';
+                messageEl.className = 'error';
+            }
+        });
+    </script>
+</body>
+</html> 
