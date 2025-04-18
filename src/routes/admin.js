@@ -31,7 +31,7 @@ function logDbError(error, query = null) {
 // @desc    Get all users from database
 // @access  Public (for testing purposes only, should be secured in production)
 router.get('/db/users', (req, res) => {
-  db.all(`SELECT id, email, password, firstName, lastName, profilePicture, verificationCode, isVerified, createdAt FROM users`, [], (err, rows) => {
+  db.all(`SELECT id, email, password, firstName, lastName, profilePicture, verificationCode, isVerified, admin, superAdmin, createdAt FROM users`, [], (err, rows) => {
     if (err) {
       logDbError(err, 'SELECT users');
       return res.status(500).json({ error: 'Database error' });
@@ -440,6 +440,67 @@ router.post('/api/admin/notify-event/:id', async (req, res) => {
       message: 'Error sending notifications', 
       error: error.message 
     });
+  }
+});
+
+// @route   POST /api/admin/user/privileges
+// @desc    Update user privileges (admin, superAdmin)
+// @access  Public (for testing purposes only, should be secured in production)
+router.post('/user/privileges', async (req, res) => {
+  try {
+    const { email, role } = req.body;
+    
+    if (!email || !role) {
+      return res.status(400).json({ success: false, message: 'Email et rôle sont requis' });
+    }
+    
+    // Vérifier que l'utilisateur existe
+    const checkUserSql = 'SELECT id FROM users WHERE email = ?';
+    
+    db.get(checkUserSql, [email], (err, user) => {
+      if (err) {
+        logDbError(err, 'Check user by email');
+        return res.status(500).json({ success: false, message: 'Erreur de base de données' });
+      }
+      
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+      }
+      
+      // Définir les valeurs d'admin et superAdmin selon le rôle
+      let admin = 0;
+      let superAdmin = 0;
+      
+      if (role === 'admin') {
+        admin = 1;
+      } else if (role === 'superadmin') {
+        admin = 1;
+        superAdmin = 1;
+      }
+      
+      // Mettre à jour les privilèges
+      const updateSql = 'UPDATE users SET admin = ?, superAdmin = ? WHERE email = ?';
+      
+      db.run(updateSql, [admin, superAdmin, email], function(err) {
+        if (err) {
+          logDbError(err, 'Update user privileges');
+          return res.status(500).json({ success: false, message: 'Erreur lors de la mise à jour des privilèges' });
+        }
+        
+        if (this.changes === 0) {
+          return res.status(400).json({ success: false, message: 'Aucune modification effectuée' });
+        }
+        
+        res.json({ 
+          success: true, 
+          message: 'Privilèges mis à jour avec succès',
+          role: role
+        });
+      });
+    });
+  } catch (error) {
+    console.error('Error updating privileges:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 });
 
