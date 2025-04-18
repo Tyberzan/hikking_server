@@ -129,6 +129,16 @@
         
         // Check if user is already authenticated
         function checkAuth() {
+            // Vérifier s'il y a un message d'erreur d'accès admin
+            const adminError = localStorage.getItem('adminAccessError');
+            if (adminError) {
+                const messageEl = document.getElementById('login-message');
+                messageEl.textContent = adminError;
+                messageEl.className = 'error';
+                // Effacer le message d'erreur pour ne l'afficher qu'une fois
+                localStorage.removeItem('adminAccessError');
+            }
+            
             if (token) {
                 // Redirect to users.html if already logged in
                 window.location.href = 'users.html';

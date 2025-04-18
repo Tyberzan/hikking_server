@@ -6,8 +6,14 @@ const eventService = {
   // Create a new hiking event
   createEvent: (eventData, userId) => {
     return new Promise((resolve, reject) => {
-      const sql = `INSERT INTO events (name, description, location, startPoint, date, duration, difficulty, createdBy)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+      const sql = `INSERT INTO events (
+                  name, description, location, startPoint, 
+                  date, duration, difficulty, createdBy,
+                  effortIPB, technicite, risques, 
+                  altitudeMin, altitudeMax, denivele, visiorando,
+                  distance
+                  )
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
                   
       db.run(sql, [
         eventData.name,
@@ -17,7 +23,15 @@ const eventService = {
         eventData.date,
         eventData.duration,
         eventData.difficulty,
-        userId
+        userId,
+        eventData.effortIPB,
+        eventData.technicite,
+        eventData.risques,
+        eventData.altitudeMin,
+        eventData.altitudeMax,
+        eventData.denivele,
+        eventData.visiorando,
+        eventData.distance
       ], function(err) {
         if (err) return reject(err);
         

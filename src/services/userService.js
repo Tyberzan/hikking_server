@@ -69,7 +69,7 @@ const userService = {
   getUserByEmail: (email) => {
     return new Promise((resolve, reject) => {
       const sql = `SELECT id, email, password, firstName, lastName, profilePicture, 
-                  isVerified FROM users WHERE email = ?`;
+                  isVerified, admin, superAdmin FROM users WHERE email = ?`;
                   
       db.get(sql, [email], (err, user) => {
         if (err) return reject(err);
@@ -84,7 +84,7 @@ const userService = {
   getUserById: (id) => {
     return new Promise((resolve, reject) => {
       const sql = `SELECT id, email, firstName, lastName, profilePicture, 
-                  isVerified, createdAt FROM users WHERE id = ?`;
+                  isVerified, createdAt, admin, superAdmin FROM users WHERE id = ?`;
                   
       db.get(sql, [id], (err, user) => {
         if (err) return reject(err);

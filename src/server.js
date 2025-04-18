@@ -55,6 +55,11 @@ app.use((req, res, next) => {
   // Exposer l'en-tête contenant le token d'authentification
   res.header('Access-Control-Expose-Headers', 'x-auth-token');
   
+  // Configuration de keep-alive à 30 minutes (1800 secondes)
+  res.header('Connection', 'keep-alive');
+  res.header('Keep-Alive', 'timeout=1800');
+  res.header('Access-Control-Max-Age', '1800');
+  
   // Préflight requests (OPTIONS)
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -85,6 +90,9 @@ app.get('/', (req, res) => {
 
 // Admin route
 app.get('/admin', (req, res) => {
+  // Servir la page admin-db.html
+  // La vérification des droits d'accès à l'API sera gérée
+  // par les middlewares adminAuth et superAdminAuth
   res.sendFile(path.join(__dirname, '../public/admin-db.html'));
 });
 
