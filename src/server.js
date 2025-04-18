@@ -28,8 +28,41 @@ if (!fs.existsSync(profilePicsDir)) {
   fs.mkdirSync(profilePicsDir);
 }
 
+// Middleware pour le debug des requêtes
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  console.log('Headers:', JSON.stringify(req.headers));
+  next();
+});
+
 // Middleware
 app.use(cors());
+
+// Configuration CORS complète pour résoudre les problèmes d'accès depuis d'autres appareils
+app.use((req, res, next) => {
+  // Autoriser toutes les origines
+  res.header('Access-Control-Allow-Origin', '*');
+  
+  // En-têtes autorisés
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, x-auth-token, Authorization');
+  
+  // Méthodes autorisées, en particulier pour les requêtes POST
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  
+  // Permettre l'envoi de cookies via CORS
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Exposer l'en-tête contenant le token d'authentification
+  res.header('Access-Control-Expose-Headers', 'x-auth-token');
+  
+  // Préflight requests (OPTIONS)
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -66,8 +99,9 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Serveur démarré sur le port ${PORT}`);
   console.log(`Interface utilisateur disponible sur http://localhost:${PORT}`);
+  console.log(`Interface accessible depuis d'autres appareils sur http://VOTRE_IP_LOCALE:${PORT}`);
   console.log(`Interface d'administration disponible sur http://localhost:${PORT}/admin`);
 }); 

@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const auth = require('../middleware/auth');
 const userService = require('../services/userService');
+const db = require('../db');
 
 // Configure multer for profile image uploads
 const storage = multer.diskStorage({
@@ -85,14 +86,33 @@ router.post('/profile-picture', auth, upload.single('profilePicture'), async (re
 });
 
 // @route   GET /api/users/events
-// @desc    Get user's events (past and future)
+// @desc    Get events for the authenticated user
 // @access  Private
 router.get('/events', auth, async (req, res) => {
   try {
-    const events = await userService.getUserEvents(req.user.id);
-    res.json(events);
+    console.log('DEBUG: Récupération des événements pour userId:', req.user.id);
+    
+    // Récupérer les participations de l'utilisateur
+    const sql = `SELECT p.*, e.name, e.location, e.startPoint, e.date, e.duration, e.difficulty, e.description
+                FROM participants p
+                JOIN events e ON p.eventId = e.id
+                WHERE p.userId = ?`;
+                
+    db.all(sql, [req.user.id], (err, rows) => {
+      if (err) {
+        console.error('ERROR: Erreur SQL lors de la récupération des événements utilisateur:', err.message);
+        return res.status(500).json({ message: 'Erreur serveur' });
+      }
+      
+      console.log('DEBUG: Événements trouvés pour l\'utilisateur:', rows.length);
+      console.log('DEBUG: Format de la réponse:', Array.isArray(rows) ? 'Array' : typeof rows);
+      console.log('DEBUG: Premier événement (si existe):', rows.length > 0 ? rows[0] : 'Aucun');
+      
+      // Renvoyer les événements
+      res.json(rows);
+    });
   } catch (error) {
-    console.error('Error getting user events:', error);
+    console.error('ERROR: Exception dans la route /events:', error);
     res.status(500).json({ message: 'Erreur serveur' });
   }
 });

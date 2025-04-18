@@ -9,7 +9,7 @@ if (!fs.existsSync(dataDir)) {
 }
 
 const dbPath = path.join(dataDir, 'hiking.db');
-const db = new sqlite3.Database(dbPath);
+let db = new sqlite3.Database(dbPath);
 
 // Initialize database tables
 function initDb() {
@@ -56,6 +56,25 @@ function initDb() {
   });
 }
 
+// Function to reconnect to the database
+function reconnect() {
+  // Close existing connection if open
+  if (db) {
+    try {
+      db.close();
+    } catch (error) {
+      console.error('Error closing database:', error);
+    }
+  }
+  
+  // Create new connection
+  db = new sqlite3.Database(dbPath);
+  console.log('Database connection reestablished');
+  
+  return db;
+}
+
 initDb();
 
-module.exports = db; 
+module.exports = db;
+module.exports.reconnect = reconnect; 

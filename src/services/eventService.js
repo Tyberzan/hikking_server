@@ -46,7 +46,7 @@ const eventService = {
         
         // Get participants for this event
         const participantsSql = `
-          SELECT p.status, u.id, u.firstName, u.lastName, u.profilePicture
+          SELECT p.status, u.id, u.firstName, u.lastName, u.profilePicture, p.status
           FROM participants p
           JOIN users u ON p.userId = u.id
           WHERE p.eventId = ?
@@ -106,50 +106,80 @@ const eventService = {
   registerParticipant: (eventId, userId) => {
     return new Promise(async (resolve, reject) => {
       try {
-        // Check if already registered
-        const checkSql = `SELECT * FROM participants WHERE userId = ? AND eventId = ?`;
+        console.log(`Tentative d'inscription: utilisateur ${userId} à l'événement ${eventId}`);
         
-        db.get(checkSql, [userId, eventId], async (err, participant) => {
-          if (err) return reject(err);
-          
-          if (participant) {
-            return reject(new Error('Vous êtes déjà inscrit à cet événement'));
-          }
-          
-          // Register participant
-          const sql = `INSERT INTO participants (userId, eventId, status) VALUES (?, ?, 'registered')`;
-          
-          db.run(sql, [userId, eventId], async function(err) {
-            if (err) return reject(err);
-            
-            try {
-              // Get event and user details for email
-              const event = await eventService.getEventById(eventId);
-              const user = await userService.getUserById(userId);
-              
-              // Send confirmation email
-              await emailService.sendEventReminder(user, event);
-              
-              resolve({
-                id: this.lastID,
-                userId,
-                eventId,
-                status: 'registered'
-              });
-            } catch (error) {
-              // Still register the user even if email fails
-              console.error('Error sending confirmation email:', error);
-              
-              resolve({
-                id: this.lastID,
-                userId,
-                eventId,
-                status: 'registered'
-              });
+        // Check if already registered
+        db.get(
+          'SELECT * FROM participants WHERE eventId = ? AND userId = ?',
+          [eventId, userId],
+          async (err, participant) => {
+            if (err) {
+              console.error('Error checking participation:', err);
+              return reject(err);
             }
-          });
-        });
+            
+            if (participant) {
+              console.log(`L'utilisateur ${userId} est déjà inscrit à l'événement ${eventId} avec le statut: ${participant.status}`);
+              return reject(new Error('Vous êtes déjà inscrit à cet événement'));
+            }
+            
+            // Register participant
+            db.run(
+              'INSERT INTO participants (eventId, userId, status) VALUES (?, ?, ?)',
+              [eventId, userId, 'registered'],
+              async function(err) {
+                if (err) {
+                  console.error('Error registering for event:', err);
+                  return reject(err);
+                }
+                
+                console.log(`Inscription réussie: utilisateur ${userId} à l'événement ${eventId}, ID: ${this.lastID}`);
+                
+                try {
+                  // Get event and user details for email
+                  console.log('Récupération des données pour l\'email...');
+                  const event = await eventService.getEventById(eventId);
+                  const user = await userService.getUserById(userId);
+                  
+                  console.log('Données pour email:', {
+                    eventTrouvé: !!event,
+                    userTrouvé: !!user
+                  });
+                  
+                  // Send confirmation email
+                  if (user && event) {
+                    console.log(`Envoi d'un email de confirmation d'inscription à ${user.email} pour l'événement "${event.name}"`);
+                    const emailResult = await emailService.sendEventRegistrationConfirmation(user, event);
+                    console.log('Résultat de l\'envoi d\'email:', emailResult ? 'Succès' : 'Échec');
+                  } else {
+                    console.error('Impossible d\'envoyer l\'email: données utilisateur ou événement manquantes');
+                  }
+                  
+                  resolve({
+                    id: this.lastID,
+                    userId,
+                    eventId,
+                    status: 'registered',
+                    emailSent: emailResult
+                  });
+                } catch (error) {
+                  console.error('Error sending registration confirmation email:', error);
+                  // Still register the user even if email fails
+                  resolve({
+                    id: this.lastID,
+                    userId,
+                    eventId,
+                    status: 'registered',
+                    emailSent: false,
+                    emailError: error.message
+                  });
+                }
+              }
+            );
+          }
+        );
       } catch (error) {
+        console.error('Exception lors de l\'inscription:', error);
         reject(error);
       }
     });
@@ -157,50 +187,116 @@ const eventService = {
   
   // Cancel participation
   cancelParticipation: (eventId, userId) => {
-    return new Promise((resolve, reject) => {
-      const sql = `UPDATE participants SET status = 'canceled' 
-                  WHERE userId = ? AND eventId = ? AND status = 'registered'`;
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Check if participation exists (without status constraint)
+        db.get(
+          'SELECT * FROM participants WHERE eventId = ? AND userId = ?',
+          [eventId, userId],
+          async (err, participant) => {
+            if (err) {
+              console.error('Error checking participation:', err);
+              return reject(err);
+            }
+            
+            if (!participant) {
+              return reject(new Error('Participation non trouvée'));
+            }
+            
+            // Si déjà annulé, on considère que c'est un succès
+            if (participant.status === 'canceled') {
+              return resolve({ success: true, alreadyCanceled: true });
+            }
+            
+            // Cancel participation
+            db.run(
+              'UPDATE participants SET status = ? WHERE eventId = ? AND userId = ?',
+              ['canceled', eventId, userId],
+              async function(err) {
+                if (err) {
+                  console.error('Error canceling participation:', err);
+                  return reject(err);
+                }
+                
+                try {
+                  // Get event and user details for email
+                  const event = await eventService.getEventById(eventId);
+                  const user = await userService.getUserById(userId);
                   
-      db.run(sql, [userId, eventId], function(err) {
-        if (err) return reject(err);
-        
-        if (this.changes === 0) {
-          return reject(new Error('Participation non trouvée ou déjà annulée'));
-        }
-        
-        resolve(true);
-      });
+                  // Send cancellation email
+                  if (user && event) {
+                    console.log(`Envoi d'un email de confirmation d'annulation à ${user.email} pour l'événement "${event.name}"`);
+                    emailService.sendEventCancellationConfirmation(user, event);
+                  }
+                  
+                  resolve({ success: true });
+                } catch (error) {
+                  console.error('Error sending cancellation confirmation email:', error);
+                  // Still cancel the participation even if email fails
+                  resolve({ success: true });
+                }
+              }
+            );
+          }
+        );
+      } catch (error) {
+        reject(error);
+      }
     });
   },
   
   // Notify all participants about a new event
   notifyAllUsers: async (eventId) => {
     try {
+      // Get event details
       const event = await eventService.getEventById(eventId);
+      if (!event) {
+        throw new Error('Événement non trouvé');
+      }
       
-      // Get all verified users
-      const sql = `SELECT * FROM users WHERE isVerified = 1`;
+      // Get all participants with status 'registered'
+      const sql = `
+        SELECT p.id as participationId, u.id as userId, u.email, u.firstName, u.lastName
+        FROM participants p
+        JOIN users u ON p.userId = u.id
+        WHERE p.eventId = ? AND p.status = 'registered'
+      `;
       
       return new Promise((resolve, reject) => {
-        db.all(sql, [], async (err, users) => {
+        db.all(sql, [eventId], async (err, participants) => {
           if (err) return reject(err);
           
-          const emailPromises = users.map(user => 
-            emailService.sendEventReminder(user, event)
-          );
+          let successCount = 0;
           
-          try {
-            await Promise.all(emailPromises);
-            resolve(true);
-          } catch (error) {
-            console.error('Error sending event notifications:', error);
-            resolve(false);
+          // Send notification to each participant
+          for (const participant of participants) {
+            try {
+              await emailService.sendEventReminder({
+                email: participant.email,
+                firstName: participant.firstName,
+                lastName: participant.lastName
+              }, {
+                id: event.id,
+                name: event.name,
+                date: event.date,
+                location: event.location,
+                startPoint: event.startPoint,
+                description: event.description
+              });
+              
+              successCount++;
+            } catch (emailErr) {
+              console.error(`Failed to send notification to ${participant.email}:`, emailErr);
+              // Continue with other notifications even if one fails
+            }
           }
+          
+          resolve({ count: successCount, total: participants.length });
         });
       });
     } catch (error) {
       console.error('Error in notifyAllUsers:', error);
-      return false;
+      throw error;
     }
   }
 };

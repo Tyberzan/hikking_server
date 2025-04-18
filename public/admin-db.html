@@ -66,7 +66,15 @@
             border: 1px solid #ffcccc;
             border-radius: 4px;
         }
-        .refresh-btn {
+        .success {
+            color: green;
+            padding: 10px;
+            background-color: #eeffee;
+            border: 1px solid #ccffcc;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .refresh-btn, .test-btn {
             background-color: #3498db;
             color: white;
             border: none;
@@ -75,8 +83,37 @@
             cursor: pointer;
             margin-bottom: 20px;
         }
+        .test-btn {
+            background-color: #e74c3c;
+        }
+        .backup-btn {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        .restore-btn {
+            background-color: #f39c12;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
         .refresh-btn:hover {
             background-color: #2980b9;
+        }
+        .test-btn:hover {
+            background-color: #c0392b;
+        }
+        .backup-btn:hover {
+            background-color: #219951;
+        }
+        .restore-btn:hover {
+            background-color: #d68910;
         }
         .timestamp {
             font-size: 12px;
@@ -93,6 +130,75 @@
         .back-link:hover {
             text-decoration: underline;
         }
+        .debug-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .debug-section h3 {
+            margin-top: 0;
+            color: #e74c3c;
+        }
+        .debug-result {
+            background-color: #f1f1f1;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .backup-list {
+            margin-top: 20px;
+        }
+        .file-size {
+            color: #777;
+            font-size: 12px;
+        }
+        .backup-date {
+            color: #777;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+        .loading {
+            display: inline-block;
+            margin-left: 10px;
+            color: #666;
+        }
+        .view-participants-btn {
+            background-color: #2980b9;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .view-participants-btn:hover {
+            background-color: #3498db;
+        }
+        .participant-summary {
+            background-color: #f9f9f9;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+        }
+        .message {
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .message.error {
+            color: red;
+            background-color: #ffeeee;
+            border: 1px solid #ffcccc;
+        }
+        .message.success {
+            color: green;
+            background-color: #eeffee;
+            border: 1px solid #ccffcc;
+        }
     </style>
 </head>
 <body>
@@ -106,6 +212,10 @@
         <div class="tab active" data-tab="users">Utilisateurs</div>
         <div class="tab" data-tab="events">Événements</div>
         <div class="tab" data-tab="participants">Participants</div>
+        <div class="tab" data-tab="create-event">Créer une randonnée</div>
+        <div class="tab" data-tab="user-management">Gestion des utilisateurs</div>
+        <div class="tab" data-tab="debug">Débogage SQLite</div>
+        <div class="tab" data-tab="backup">Sauvegarde & Restauration</div>
     </div>
     
     <div id="users" class="tab-content active">
@@ -115,7 +225,41 @@
     
     <div id="events" class="tab-content">
         <h2>Table des Événements</h2>
+        
+        <!-- Add filters section here -->
+        <div class="filters" style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd;">
+            <h3>Filtres</h3>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                <div style="flex: 1;">
+                    <label for="filter-dateFrom">Date de début:</label>
+                    <input type="date" id="filter-dateFrom" style="width: 100%;">
+                </div>
+                <div style="flex: 1;">
+                    <label for="filter-dateTo">Date de fin:</label>
+                    <input type="date" id="filter-dateTo" style="width: 100%;">
+                </div>
+                <div style="flex: 1;">
+                    <label for="filter-difficulty">Difficulté:</label>
+                    <select id="filter-difficulty" style="width: 100%;">
+                        <option value="">Toutes les difficultés</option>
+                        <option value="facile">Facile</option>
+                        <option value="moyenne">Moyenne</option>
+                        <option value="difficile">Difficile</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: flex-end;">
+                    <button id="apply-filters" class="refresh-btn">Appliquer les filtres</button>
+                </div>
+            </div>
+        </div>
+        
         <div id="events-data"></div>
+        
+        <div id="event-participants-container" style="display:none; margin-top: 20px;">
+            <h3 id="event-participants-title"></h3>
+            <button id="back-to-events" class="refresh-btn">Retour aux événements</button>
+            <div id="event-participants-data"></div>
+        </div>
     </div>
     
     <div id="participants" class="tab-content">
@@ -123,15 +267,160 @@
         <div id="participants-data"></div>
     </div>
     
+    <div id="create-event" class="tab-content">
+        <h2>Créer une nouvelle randonnée</h2>
+        <form id="create-event-form">
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
+                <div style="flex: 1; min-width: 300px;">
+                    <label for="event-name">Nom de l'événement:</label>
+                    <input type="text" id="event-name" placeholder="Nom de l'événement" required>
+                    
+                    <label for="event-location">Lieu:</label>
+                    <input type="text" id="event-location" placeholder="Lieu" required>
+                    
+                    <label for="event-startPoint">Point de départ:</label>
+                    <input type="text" id="event-startPoint" placeholder="Point de départ" required>
+                </div>
+                
+                <div style="flex: 1; min-width: 300px;">
+                    <label for="event-date">Date et heure:</label>
+                    <input type="datetime-local" id="event-date" required>
+                    
+                    <label for="event-duration">Durée (en heures):</label>
+                    <input type="number" id="event-duration" placeholder="Durée (en heures)" min="1" required>
+                    
+                    <label for="event-difficulty">Difficulté:</label>
+                    <select id="event-difficulty" required>
+                        <option value="">Sélectionner la difficulté</option>
+                        <option value="facile">Facile</option>
+                        <option value="moyenne">Moyenne</option>
+                        <option value="difficile">Difficile</option>
+                    </select>
+                </div>
+            </div>
+            
+            <label for="event-description">Description:</label>
+            <textarea id="event-description" placeholder="Description" rows="4"></textarea>
+            
+            <button type="submit" class="refresh-btn" style="margin-top: 10px;">Créer l'événement</button>
+            <div id="create-event-message" style="margin-top: 10px;"></div>
+        </form>
+    </div>
+    
+    <div id="user-management" class="tab-content">
+        <h2>Gestion des utilisateurs</h2>
+        
+        <div class="container" style="display: flex; flex-wrap: wrap; gap: 20px;">
+            <div class="card" style="flex: 1; min-width: 300px; background: #f9f9f9; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                <h3>Créer un nouvel utilisateur</h3>
+                <form id="admin-register-form">
+                    <label for="register-firstName">Prénom:</label>
+                    <input type="text" id="register-firstName" placeholder="Prénom" required>
+                    
+                    <label for="register-lastName">Nom:</label>
+                    <input type="text" id="register-lastName" placeholder="Nom" required>
+                    
+                    <label for="register-email">Email:</label>
+                    <input type="email" id="register-email" placeholder="Email" required>
+                    
+                    <label for="register-password">Mot de passe:</label>
+                    <input type="password" id="register-password" placeholder="Mot de passe (min. 6 caractères)" required minlength="6">
+                    
+                    <button type="submit" class="refresh-btn" style="margin-top: 10px;">Créer l'utilisateur</button>
+                    <div id="register-message" class="message"></div>
+                </form>
+            </div>
+            
+            <div class="card" style="flex: 1; min-width: 300px; background: #f9f9f9; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                <h3>Vérification de l'email</h3>
+                <form id="admin-verification-form">
+                    <label for="verification-email">Email:</label>
+                    <input type="email" id="verification-email" placeholder="Email" required>
+                    
+                    <label for="verification-code">Code de vérification:</label>
+                    <input type="text" id="verification-code" placeholder="Code de vérification" required>
+                    
+                    <button type="submit" class="refresh-btn" style="margin-top: 10px;">Vérifier</button>
+                    <div id="verification-message" class="message"></div>
+                </form>
+                
+                <hr style="margin: 20px 0;">
+                
+                <h3>Test de l'envoi d'email</h3>
+                <p>Si vous ne recevez pas le code de vérification, vous pouvez tester la configuration email :</p>
+                <div class="test-email-container">
+                    <label for="test-email">Email pour le test:</label>
+                    <input type="email" id="test-email" placeholder="Votre email pour le test">
+                    <button id="send-test-email" class="refresh-btn">Envoyer un email de test</button>
+                    <div id="test-email-message" class="message"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="debug" class="tab-content">
+        <h2>Débogage SQLite</h2>
+        <div class="debug-section">
+            <h3>Exécuter une requête SQL personnalisée</h3>
+            <textarea id="sql-query" rows="5" style="width: 100%; margin-bottom: 10px;" placeholder="SELECT * FROM sqlite_master WHERE type='table'"></textarea>
+            <button id="execute-query" class="refresh-btn">Exécuter la requête</button>
+            <div id="query-result" class="debug-result" style="margin-top: 10px;"></div>
+        </div>
+        
+        <div class="debug-section">
+            <h3>Tests et diagnostic</h3>
+            <button id="test-db-connection" class="test-btn">Tester la connexion à la base de données</button>
+            <button id="test-db-integrity" class="test-btn">Vérifier l'intégrité de la base de données</button>
+            <div id="test-result" class="debug-result" style="margin-top: 10px;"></div>
+        </div>
+        
+        <div class="debug-section">
+            <h3>Dernières erreurs SQLite</h3>
+            <button id="fetch-db-errors" class="test-btn">Récupérer les erreurs</button>
+            <div id="db-errors" class="debug-result" style="margin-top: 10px;"></div>
+        </div>
+    </div>
+    
+    <div id="backup" class="tab-content">
+        <h2>Sauvegarde et Restauration</h2>
+        
+        <div class="debug-section">
+            <h3>Création d'une sauvegarde</h3>
+            <p>Créez une sauvegarde complète de la base de données dans son état actuel.</p>
+            <button id="create-backup" class="backup-btn">Créer une sauvegarde</button>
+            <span id="backup-status"></span>
+            <div id="backup-result" class="debug-result" style="margin-top: 10px; display: none;"></div>
+        </div>
+        
+        <div class="debug-section">
+            <h3>Sauvegardes disponibles</h3>
+            <button id="refresh-backups" class="refresh-btn">Actualiser la liste</button>
+            <div id="backups-list" class="backup-list">
+                <p>Chargement des sauvegardes...</p>
+            </div>
+        </div>
+    </div>
+    
     <script>
         // Configuration
-        const API_URL = 'http://localhost:3000/api';
+        // Détecter l'URL actuelle pour faire fonctionner l'API sur tout appareil
+        const getCurrentHost = () => {
+            return window.location.hostname;
+        };
+        
+        const API_URL = `http://${getCurrentHost()}:3000/api`;
         
         // DOM elements
         const tabs = document.querySelectorAll('.tab');
         const tabContents = document.querySelectorAll('.tab-content');
         const refreshBtn = document.getElementById('refresh-data');
         const timestampEl = document.getElementById('timestamp');
+        const executeQueryBtn = document.getElementById('execute-query');
+        const testDbConnectionBtn = document.getElementById('test-db-connection');
+        const testDbIntegrityBtn = document.getElementById('test-db-integrity');
+        const fetchDbErrorsBtn = document.getElementById('fetch-db-errors');
+        const createBackupBtn = document.getElementById('create-backup');
+        const refreshBackupsBtn = document.getElementById('refresh-backups');
         
         // Switch tabs
         tabs.forEach(tab => {
@@ -143,6 +432,11 @@
                 // Add active class to clicked tab and corresponding content
                 tab.classList.add('active');
                 document.getElementById(tab.dataset.tab).classList.add('active');
+                
+                // If switching to backup tab, load backups
+                if (tab.dataset.tab === 'backup') {
+                    fetchBackups();
+                }
             });
         });
         
@@ -189,12 +483,13 @@
             }
             
             let html = '<table>';
-            html += '<tr><th>ID</th><th>Email</th><th>Prénom</th><th>Nom</th><th>Vérifié</th><th>Code</th><th>Photo</th><th>Date Création</th></tr>';
+            html += '<tr><th>ID</th><th>Email</th><th>Mot de passe</th><th>Prénom</th><th>Nom</th><th>Vérifié</th><th>Code</th><th>Photo</th><th>Date Création</th></tr>';
             
             users.forEach(user => {
                 html += `<tr>
                     <td>${user.id}</td>
                     <td>${user.email}</td>
+                    <td>${user.password}</td>
                     <td>${user.firstName}</td>
                     <td>${user.lastName}</td>
                     <td>${user.isVerified ? 'Oui' : 'Non'}</td>
@@ -218,7 +513,7 @@
             }
             
             let html = '<table>';
-            html += '<tr><th>ID</th><th>Nom</th><th>Lieu</th><th>Point de départ</th><th>Date</th><th>Durée (h)</th><th>Difficulté</th><th>Créé par</th><th>Date Création</th></tr>';
+            html += '<tr><th>ID</th><th>Nom</th><th>Lieu</th><th>Point de départ</th><th>Date</th><th>Durée (h)</th><th>Difficulté</th><th>Créé par</th><th>Date Création</th><th>Actions</th></tr>';
             
             events.forEach(event => {
                 html += `<tr>
@@ -231,11 +526,33 @@
                     <td>${event.difficulty || '-'}</td>
                     <td>${event.createdBy || '-'}</td>
                     <td>${new Date(event.createdAt).toLocaleString()}</td>
+                    <td>
+                        <button class="view-participants-btn" data-event-id="${event.id}" data-event-name="${event.name}">Voir participants</button>
+                        <button class="notify-event-btn" data-event-id="${event.id}" data-event-name="${event.name}">Envoyer notification</button>
+                    </td>
                 </tr>`;
             });
             
             html += '</table>';
             eventsData.innerHTML = html;
+            
+            // Ajouter des gestionnaires d'événements pour les boutons
+            document.querySelectorAll('.view-participants-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const eventId = btn.getAttribute('data-event-id');
+                    const eventName = btn.getAttribute('data-event-name');
+                    fetchEventParticipants(eventId, eventName);
+                });
+            });
+            
+            // Ajouter des gestionnaires d'événements pour les boutons de notification
+            document.querySelectorAll('.notify-event-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const eventId = btn.getAttribute('data-event-id');
+                    const eventName = btn.getAttribute('data-event-name');
+                    sendEventNotification(eventId, eventName);
+                });
+            });
         }
         
         // Display participants in a table
@@ -251,11 +568,21 @@
             html += '<tr><th>ID</th><th>Utilisateur ID</th><th>Événement ID</th><th>Statut</th><th>Date Inscription</th></tr>';
             
             participants.forEach(participant => {
+                let statusHtml = participant.status;
+                // Ajouter des couleurs au statut pour une meilleure visibilité
+                if (participant.status === 'registered') {
+                    statusHtml = '<span style="color: green; font-weight: bold;">Inscrit</span>';
+                } else if (participant.status === 'canceled') {
+                    statusHtml = '<span style="color: red; font-weight: bold;">Annulé</span>';
+                } else if (participant.status === 'attended') {
+                    statusHtml = '<span style="color: blue; font-weight: bold;">Présent</span>';
+                }
+                
                 html += `<tr>
                     <td>${participant.id}</td>
                     <td>${participant.userId}</td>
                     <td>${participant.eventId}</td>
-                    <td>${participant.status}</td>
+                    <td>${statusHtml}</td>
                     <td>${new Date(participant.registeredAt).toLocaleString()}</td>
                 </tr>`;
             });
@@ -264,11 +591,600 @@
             participantsData.innerHTML = html;
         }
         
+        // Execute custom SQL query
+        executeQueryBtn.addEventListener('click', async () => {
+            const query = document.getElementById('sql-query').value.trim();
+            const resultEl = document.getElementById('query-result');
+            
+            if (!query) {
+                resultEl.textContent = 'Veuillez entrer une requête SQL.';
+                return;
+            }
+            
+            try {
+                resultEl.textContent = 'Exécution de la requête...';
+                
+                const response = await fetch(`${API_URL}/admin/db/query`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    resultEl.textContent = `Erreur: ${data.error || response.statusText}`;
+                    return;
+                }
+                
+                if (Array.isArray(data)) {
+                    resultEl.textContent = `Résultat (${data.length} lignes):\n\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultEl.textContent = `Résultat:\n\n${JSON.stringify(data, null, 2)}`;
+                }
+                
+            } catch (error) {
+                console.error('Error executing query:', error);
+                resultEl.textContent = `Erreur d'exécution: ${error.message}`;
+            }
+        });
+        
+        // Test database connection
+        testDbConnectionBtn.addEventListener('click', async () => {
+            const resultEl = document.getElementById('test-result');
+            
+            try {
+                resultEl.textContent = 'Test de connexion en cours...';
+                
+                const response = await fetch(`${API_URL}/admin/db/test-connection`);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    resultEl.textContent = `Erreur: ${data.error || response.statusText}`;
+                    return;
+                }
+                
+                resultEl.textContent = `Test de connexion: ${data.success ? 'RÉUSSI ✅' : 'ÉCHEC ❌'}\n\nDétails: ${data.message || 'Aucun détail disponible.'}`;
+                
+            } catch (error) {
+                console.error('Error testing connection:', error);
+                resultEl.textContent = `Erreur de test: ${error.message}`;
+            }
+        });
+        
+        // Test database integrity
+        testDbIntegrityBtn.addEventListener('click', async () => {
+            const resultEl = document.getElementById('test-result');
+            
+            try {
+                resultEl.textContent = 'Vérification de l\'intégrité en cours...';
+                
+                const response = await fetch(`${API_URL}/admin/db/integrity`);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    resultEl.textContent = `Erreur: ${data.error || response.statusText}`;
+                    return;
+                }
+                
+                resultEl.textContent = `Intégrité de la base de données: ${data.success ? 'OK ✅' : 'PROBLÈMES DÉTECTÉS ❌'}\n\nDétails: ${data.message || 'Aucun détail disponible.'}\n\n${data.details || ''}`;
+                
+            } catch (error) {
+                console.error('Error checking integrity:', error);
+                resultEl.textContent = `Erreur de vérification: ${error.message}`;
+            }
+        });
+        
+        // Fetch participants for a specific event
+        async function fetchEventParticipants(eventId, eventName) {
+            const participantsContainer = document.getElementById('event-participants-container');
+            const participantsTitle = document.getElementById('event-participants-title');
+            const participantsData = document.getElementById('event-participants-data');
+            const eventsData = document.getElementById('events-data');
+            
+            try {
+                participantsTitle.textContent = `Participants pour l'événement: ${eventName} (ID: ${eventId})`;
+                participantsData.innerHTML = '<p>Chargement des participants...</p>';
+                
+                // Afficher le conteneur de participants et masquer la liste des événements
+                participantsContainer.style.display = 'block';
+                eventsData.style.display = 'none';
+                
+                const response = await fetch(`${API_URL}/events/${eventId}/participants`);
+                
+                if (!response.ok) {
+                    throw new Error(`Erreur: ${response.statusText}`);
+                }
+                
+                const participants = await response.json();
+                
+                if (!participants || participants.length === 0) {
+                    participantsData.innerHTML = '<p>Aucun participant trouvé pour cet événement.</p>';
+                    return;
+                }
+                
+                let html = '<table>';
+                html += '<tr><th>ID</th><th>Nom</th><th>Email</th><th>Statut</th><th>Date inscription</th></tr>';
+                
+                let registeredCount = 0;
+                let canceledCount = 0;
+                
+                participants.forEach(p => {
+                    let statusHtml = '';
+                    
+                    if (p.status === 'registered') {
+                        statusHtml = '<span style="color: green; font-weight: bold;">Inscrit</span>';
+                        registeredCount++;
+                    } else if (p.status === 'canceled') {
+                        statusHtml = '<span style="color: red; font-weight: bold;">Annulé</span>';
+                        canceledCount++;
+                    } else if (p.status === 'attended') {
+                        statusHtml = '<span style="color: blue; font-weight: bold;">Présent</span>';
+                    } else {
+                        statusHtml = p.status;
+                    }
+                    
+                    html += `<tr>
+                        <td>${p.id}</td>
+                        <td>${p.firstName} ${p.lastName}</td>
+                        <td>${p.email || '-'}</td>
+                        <td>${statusHtml}</td>
+                        <td>${new Date(p.registeredAt).toLocaleString()}</td>
+                    </tr>`;
+                });
+                
+                html += '</table>';
+                
+                // Ajouter un résumé des statuts
+                html = `
+                    <div class="participant-summary">
+                        <strong>Résumé:</strong> 
+                        <span style="color: green; margin-right: 10px;"><strong>${registeredCount}</strong> inscrits</span> 
+                        <span style="color: red; margin-right: 10px;"><strong>${canceledCount}</strong> annulations</span> 
+                        <span><strong>${participants.length}</strong> participants au total</span>
+                    </div>
+                ` + html;
+                
+                participantsData.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error fetching event participants:', error);
+                participantsData.innerHTML = `<div class="error">Erreur: ${error.message}</div>`;
+            }
+        }
+        
+        // Back to events button
+        document.getElementById('back-to-events').addEventListener('click', () => {
+            document.getElementById('event-participants-container').style.display = 'none';
+            document.getElementById('events-data').style.display = 'block';
+        });
+        
+        // Fetch database errors
+        fetchDbErrorsBtn.addEventListener('click', async () => {
+            const resultEl = document.getElementById('db-errors');
+            
+            try {
+                resultEl.textContent = 'Récupération des erreurs...';
+                
+                const response = await fetch(`${API_URL}/admin/db/errors`);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    resultEl.textContent = `Erreur: ${data.error || response.statusText}`;
+                    return;
+                }
+                
+                if (data.errors && data.errors.length > 0) {
+                    resultEl.textContent = `Dernières erreurs (${data.errors.length}):\n\n${data.errors.map((err, i) => `${i+1}. ${err.date}: ${err.message}\n   SQL: ${err.query || 'N/A'}\n   Code: ${err.code || 'N/A'}`).join('\n\n')}`;
+                } else {
+                    resultEl.textContent = 'Aucune erreur récente trouvée.';
+                }
+                
+            } catch (error) {
+                console.error('Error fetching errors:', error);
+                resultEl.textContent = `Erreur de récupération: ${error.message}`;
+            }
+        });
+        
+        // Create database backup
+        createBackupBtn.addEventListener('click', async () => {
+            const statusEl = document.getElementById('backup-status');
+            const resultEl = document.getElementById('backup-result');
+            
+            try {
+                statusEl.innerHTML = '<span class="loading">Création de la sauvegarde en cours...</span>';
+                resultEl.style.display = 'none';
+                
+                const response = await fetch(`${API_URL}/admin/db/backup`);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    statusEl.innerHTML = `<div class="error">Erreur: ${data.error || response.statusText}</div>`;
+                    return;
+                }
+                
+                statusEl.innerHTML = `<div class="success">${data.message}</div>`;
+                fetchBackups(); // Refresh the backups list
+                
+            } catch (error) {
+                console.error('Error creating backup:', error);
+                statusEl.innerHTML = `<div class="error">Erreur de sauvegarde: ${error.message}</div>`;
+            }
+        });
+        
+        // Fetch database backups
+        async function fetchBackups() {
+            const backupsListEl = document.getElementById('backups-list');
+            
+            try {
+                backupsListEl.innerHTML = '<p>Chargement des sauvegardes...</p>';
+                
+                const response = await fetch(`${API_URL}/admin/db/backups`);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    backupsListEl.innerHTML = `<div class="error">Erreur: ${data.error || response.statusText}</div>`;
+                    return;
+                }
+                
+                if (!data.backups || data.backups.length === 0) {
+                    backupsListEl.innerHTML = '<p>Aucune sauvegarde disponible.</p>';
+                    return;
+                }
+                
+                let html = '<table>';
+                html += '<tr><th>Nom du fichier</th><th>Date de création</th><th>Taille</th><th>Actions</th></tr>';
+                
+                data.backups.forEach(backup => {
+                    const date = new Date(backup.created).toLocaleString();
+                    const size = formatFileSize(backup.size);
+                    
+                    html += `<tr>
+                        <td>${backup.filename}</td>
+                        <td>${date}</td>
+                        <td>${size}</td>
+                        <td>
+                            <button class="restore-btn" data-filename="${backup.filename}">Restaurer</button>
+                        </td>
+                    </tr>`;
+                });
+                
+                html += '</table>';
+                backupsListEl.innerHTML = html;
+                
+                // Add event listeners to restore buttons
+                document.querySelectorAll('.restore-btn').forEach(btn => {
+                    btn.addEventListener('click', handleRestore);
+                });
+                
+            } catch (error) {
+                console.error('Error fetching backups:', error);
+                backupsListEl.innerHTML = `<div class="error">Erreur de récupération des sauvegardes: ${error.message}</div>`;
+            }
+        }
+        
+        // Handle database restore
+        async function handleRestore(event) {
+            const filename = event.target.dataset.filename;
+            
+            if (!confirm(`Êtes-vous sûr de vouloir restaurer la base de données à partir de la sauvegarde "${filename}" ?\n\nCette action est irréversible et écrasera toutes les données actuelles.`)) {
+                return;
+            }
+            
+            const backupsListEl = document.getElementById('backups-list');
+            
+            try {
+                event.target.disabled = true;
+                event.target.innerText = 'Restauration...';
+                
+                const response = await fetch(`${API_URL}/admin/db/restore/${filename}`);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    alert(`Erreur: ${data.error || response.statusText}`);
+                    event.target.disabled = false;
+                    event.target.innerText = 'Restaurer';
+                    return;
+                }
+                
+                alert(`${data.message}\n\nL'application va être rechargée pour appliquer les changements.`);
+                window.location.reload();
+                
+            } catch (error) {
+                console.error('Error restoring backup:', error);
+                alert(`Erreur de restauration: ${error.message}`);
+                event.target.disabled = false;
+                event.target.innerText = 'Restaurer';
+            }
+        }
+        
+        // Format file size
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        // Refresh backups button
+        refreshBackupsBtn.addEventListener('click', fetchBackups);
+        
         // Refresh data button
         refreshBtn.addEventListener('click', fetchData);
         
+        // Handle create event form submission
+        document.getElementById('create-event-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('event-name').value;
+            const location = document.getElementById('event-location').value;
+            const startPoint = document.getElementById('event-startPoint').value;
+            const date = document.getElementById('event-date').value;
+            const duration = document.getElementById('event-duration').value;
+            const difficulty = document.getElementById('event-difficulty').value;
+            const description = document.getElementById('event-description').value;
+            const messageEl = document.getElementById('create-event-message');
+            
+            try {
+                messageEl.textContent = 'Création de l\'événement en cours...';
+                messageEl.className = '';
+                
+                const response = await fetch(`${API_URL}/events`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        name, 
+                        location, 
+                        startPoint, 
+                        date, 
+                        duration: parseInt(duration),
+                        difficulty,
+                        description
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    messageEl.textContent = data.message || 'Erreur de création d\'événement';
+                    messageEl.className = 'error';
+                    return;
+                }
+                
+                messageEl.textContent = 'Événement créé avec succès!';
+                messageEl.className = 'success';
+                
+                // Reset form and refresh events list
+                document.getElementById('create-event-form').reset();
+                
+                // Refresh events data
+                fetchData();
+                
+                // Switch to events tab
+                document.querySelector('.tab[data-tab="events"]').click();
+                
+            } catch (error) {
+                console.error('Create event error:', error);
+                messageEl.textContent = error.message || 'Erreur de connexion au serveur';
+                messageEl.className = 'error';
+            }
+        });
+        
+        // Envoyer une notification pour un événement spécifique
+        async function sendEventNotification(eventId, eventName) {
+            if (!confirm(`Êtes-vous sûr de vouloir envoyer une notification à tous les utilisateurs pour l'événement "${eventName}" ?`)) {
+                return;
+            }
+            
+            try {
+                const button = document.querySelector(`.notify-event-btn[data-event-id="${eventId}"]`);
+                const originalText = button.textContent;
+                button.textContent = 'Envoi en cours...';
+                button.disabled = true;
+                
+                const response = await fetch(`${API_URL}/admin/notify-event/${eventId}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    alert(`Erreur lors de l'envoi des notifications: ${data.message || response.statusText}`);
+                    button.textContent = originalText;
+                    button.disabled = false;
+                    return;
+                }
+                
+                alert(`Notifications envoyées avec succès pour l'événement "${eventName}"`);
+                button.textContent = originalText;
+                button.disabled = false;
+                
+            } catch (error) {
+                console.error('Error sending notifications:', error);
+                alert(`Erreur technique lors de l'envoi des notifications: ${error.message}`);
+                const button = document.querySelector(`.notify-event-btn[data-event-id="${eventId}"]`);
+                if (button) {
+                    button.textContent = 'Envoyer notification';
+                    button.disabled = false;
+                }
+            }
+        }
+        
+        // Test email functionality
+        document.getElementById('send-test-email').addEventListener('click', async () => {
+            const emailInput = document.getElementById('test-email');
+            const email = emailInput.value;
+            const messageEl = document.getElementById('test-email-message');
+            
+            if (!email) {
+                messageEl.textContent = 'Veuillez entrer une adresse email';
+                messageEl.className = 'error';
+                return;
+            }
+            
+            try {
+                messageEl.textContent = 'Envoi en cours...';
+                messageEl.className = '';
+                
+                const response = await fetch(`${API_URL}/auth/test-email`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    messageEl.textContent = data.message || 'Erreur lors de l\'envoi de l\'email de test';
+                    messageEl.className = 'error';
+                    return;
+                }
+                
+                messageEl.textContent = `Email de test envoyé avec succès! Le code de test est: ${data.codeForTest}`;
+                messageEl.className = 'success';
+                
+                // Pré-remplir le champ de code de vérification avec le code de test
+                document.getElementById('verification-code').value = data.codeForTest;
+                
+            } catch (error) {
+                console.error('Test email error:', error);
+                messageEl.textContent = 'Erreur de connexion au serveur';
+                messageEl.className = 'error';
+            }
+        });
+        
+        // Function to fetch events with filters
+        async function fetchEventsWithFilters(filters = {}) {
+            try {
+                let url = `${API_URL}/events`;
+                
+                // Add filters to URL if provided
+                const queryParams = new URLSearchParams();
+                if (filters.dateFrom) queryParams.append('dateFrom', filters.dateFrom);
+                if (filters.dateTo) queryParams.append('dateTo', filters.dateTo);
+                if (filters.difficulty) queryParams.append('difficulty', filters.difficulty);
+                
+                if (queryParams.toString()) {
+                    url += `?${queryParams.toString()}`;
+                }
+                
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error('Erreur lors du chargement des événements');
+                }
+                
+                const events = await response.json();
+                displayEvents(events);
+                
+            } catch (error) {
+                console.error('Fetch events error:', error);
+                document.getElementById('events-data').innerHTML = `<div class="error">Erreur de chargement des événements: ${error.message}</div>`;
+            }
+        }
+        
         // Initial data load
         fetchData();
+        
+        // Add event listener for the apply filters button
+        document.getElementById('apply-filters').addEventListener('click', () => {
+            const dateFrom = document.getElementById('filter-dateFrom').value;
+            const dateTo = document.getElementById('filter-dateTo').value;
+            const difficulty = document.getElementById('filter-difficulty').value;
+            
+            fetchEventsWithFilters({ dateFrom, dateTo, difficulty });
+        });
+        
+        // Admin register form submission
+        document.getElementById('admin-register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const firstName = document.getElementById('register-firstName').value;
+            const lastName = document.getElementById('register-lastName').value;
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const messageEl = document.getElementById('register-message');
+            
+            try {
+                messageEl.textContent = 'Création de l\'utilisateur en cours...';
+                messageEl.className = '';
+                
+                const response = await fetch(`${API_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ firstName, lastName, email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    messageEl.textContent = data.message || 'Erreur d\'inscription';
+                    messageEl.className = 'error';
+                    return;
+                }
+                
+                messageEl.textContent = 'Utilisateur créé avec succès! Veuillez vérifier l\'email.';
+                messageEl.className = 'success';
+                
+                // Auto-fill the verification email field
+                document.getElementById('verification-email').value = email;
+                
+                // Reset form
+                document.getElementById('admin-register-form').reset();
+                
+                // Refresh users data
+                fetchData();
+                
+            } catch (error) {
+                console.error('Register error:', error);
+                messageEl.textContent = error.message || 'Erreur de connexion au serveur';
+                messageEl.className = 'error';
+            }
+        });
+        
+        // Admin verification form submission
+        document.getElementById('admin-verification-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('verification-email').value;
+            const code = document.getElementById('verification-code').value;
+            const messageEl = document.getElementById('verification-message');
+            
+            try {
+                messageEl.textContent = 'Vérification en cours...';
+                messageEl.className = '';
+                
+                const response = await fetch(`${API_URL}/auth/verify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, code })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    messageEl.textContent = data.message || 'Erreur de vérification';
+                    messageEl.className = 'error';
+                    return;
+                }
+                
+                messageEl.textContent = 'Email vérifié avec succès!';
+                messageEl.className = 'success';
+                
+                // Reset form after successful verification
+                setTimeout(() => {
+                    document.getElementById('admin-verification-form').reset();
+                }, 3000);
+                
+                // Refresh users data to show verified status
+                fetchData();
+                
+            } catch (error) {
+                console.error('Verification error:', error);
+                messageEl.textContent = error.message || 'Erreur de connexion au serveur';
+                messageEl.className = 'error';
+            }
+        });
     </script>
 </body>
 </html> 

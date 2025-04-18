@@ -3,6 +3,9 @@ const router = express.Router();
 const { body, query, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
 const eventService = require('../services/eventService');
+const db = require('../db');
+const userService = require('../services/userService');
+const emailService = require('../services/emailService');
 
 // @route   POST /api/events
 // @desc    Create a new hiking event
@@ -93,7 +96,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // @route   POST /api/events/:id/register
-// @desc    Register current user for an event
+// @desc    Register for an event
 // @access  Private
 router.post('/:id/register', auth, async (req, res) => {
   try {
@@ -103,23 +106,66 @@ router.post('/:id/register', auth, async (req, res) => {
       return res.status(404).json({ message: 'Événement non trouvé' });
     }
     
-    // Check if event date is in the past
-    if (new Date(event.date) < new Date()) {
-      return res.status(400).json({ message: 'Impossible de s\'inscrire à un événement passé' });
-    }
-    
-    // Register user for the event
-    await eventService.registerParticipant(req.params.id, req.user.id);
-    
-    res.json({
-      success: true,
-      message: 'Inscription réussie'
-    });
+    // Vérifier si l'utilisateur est déjà inscrit mais a annulé
+    db.get(
+      'SELECT * FROM participants WHERE eventId = ? AND userId = ?',
+      [req.params.id, req.user.id],
+      async (err, participant) => {
+        if (err) {
+          console.error('Error checking existing participation:', err);
+          return res.status(500).json({ message: 'Erreur serveur lors de la vérification de l\'inscription' });
+        }
+        
+        // Si l'utilisateur a déjà une participation et qu'elle est annulée, la réactiver
+        if (participant && participant.status === 'canceled') {
+          db.run(
+            'UPDATE participants SET status = ? WHERE eventId = ? AND userId = ?',
+            ['registered', req.params.id, req.user.id],
+            async function(err) {
+              if (err) {
+                console.error('Error restoring registration:', err);
+                return res.status(500).json({ message: 'Erreur serveur lors de la réactivation de l\'inscription' });
+              }
+              
+              // Récupérer les détails utilisateur pour l'email
+              const user = await userService.getUserById(req.user.id);
+              console.log('Utilisateur récupéré pour email:', user ? 'Trouvé' : 'Non trouvé');
+              
+              // Envoyer un email de confirmation de réactivation
+              if (user) {
+                console.log('Tentative d\'envoi d\'email de réactivation d\'inscription');
+                const emailSent = await emailService.sendEventRegistrationConfirmation(user, event);
+                console.log('Résultat de l\'envoi d\'email de réactivation:', emailSent ? 'Succès' : 'Échec');
+              }
+              
+              return res.json({
+                success: true,
+                message: 'Inscription réactivée avec succès'
+              });
+            }
+          );
+        } else {
+          // Sinon, tentative d'inscription normale
+          try {
+            const registrationResult = await eventService.registerParticipant(req.params.id, req.user.id);
+            console.log('Résultat de l\'inscription:', registrationResult);
+            
+            res.json({
+              success: true,
+              message: 'Inscription réussie'
+            });
+          } catch (error) {
+            console.error('Error registering for event:', error);
+            if (error.message === 'Vous êtes déjà inscrit à cet événement') {
+              return res.status(400).json({ message: error.message });
+            }
+            res.status(500).json({ message: 'Erreur serveur' });
+          }
+        }
+      }
+    );
   } catch (error) {
     console.error('Error registering for event:', error);
-    if (error.message === 'Vous êtes déjà inscrit à cet événement') {
-      return res.status(400).json({ message: error.message });
-    }
     res.status(500).json({ message: 'Erreur serveur' });
   }
 });
@@ -136,7 +182,15 @@ router.post('/:id/cancel', auth, async (req, res) => {
     }
     
     // Cancel participation
-    await eventService.cancelParticipation(req.params.id, req.user.id);
+    const result = await eventService.cancelParticipation(req.params.id, req.user.id);
+    
+    // Si la participation était déjà annulée
+    if (result.alreadyCanceled) {
+      return res.json({
+        success: true,
+        message: 'Cette inscription était déjà annulée'
+      });
+    }
     
     res.json({
       success: true,
@@ -144,7 +198,7 @@ router.post('/:id/cancel', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Error canceling participation:', error);
-    if (error.message === 'Participation non trouvée ou déjà annulée') {
+    if (error.message === 'Participation non trouvée') {
       return res.status(400).json({ message: error.message });
     }
     res.status(500).json({ message: 'Erreur serveur' });
@@ -156,16 +210,80 @@ router.post('/:id/cancel', auth, async (req, res) => {
 // @access  Public
 router.get('/:id/participants', async (req, res) => {
   try {
-    const event = await eventService.getEventById(req.params.id);
+    // Requête pour obtenir les participants avec leurs informations complètes
+    const sql = `
+      SELECT u.id, u.firstName, u.lastName, u.email, u.profilePicture, p.status, p.registeredAt 
+      FROM participants p
+      JOIN users u ON p.userId = u.id
+      WHERE p.eventId = ?
+      ORDER BY p.registeredAt ASC
+    `;
     
+    db.all(sql, [req.params.id], (err, participants) => {
+      if (err) {
+        console.error('Error getting event participants:', err);
+        return res.status(500).json({ message: 'Erreur serveur lors de la récupération des participants' });
+      }
+      
+      console.log(`DEBUG: Récupération de ${participants.length} participants pour l'événement ${req.params.id}`);
+      
+      // Pour chaque participant, ne pas envoyer l'email complet pour protéger la vie privée
+      const safeParticipants = participants.map(p => {
+        // Masquer l'email complet sauf pour la première partie avant @
+        let maskedEmail = '';
+        if (p.email) {
+          const parts = p.email.split('@');
+          if (parts.length === 2) {
+            maskedEmail = `${parts[0]}@****`;
+          }
+        }
+        
+        return {
+          id: p.id,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          email: maskedEmail,
+          profilePicture: p.profilePicture,
+          status: p.status,
+          registeredAt: p.registeredAt
+        };
+      });
+      
+      res.json(safeParticipants);
+    });
+  } catch (error) {
+    console.error('Error getting event participants:', error);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// @route   POST /api/events/:id/notify
+// @desc    Manually trigger notifications for an event
+// @access  Private
+router.post('/:id/notify', auth, async (req, res) => {
+  try {
+    // Check if user is an admin
+    if (!req.user.isAdmin) {
+      return res.status(403).json({ message: 'Accès non autorisé. Privilèges administrateur requis.' });
+    }
+
+    // Check if event exists
+    const event = await eventService.getEventById(req.params.id);
     if (!event) {
       return res.status(404).json({ message: 'Événement non trouvé' });
     }
     
-    res.json(event.participants);
+    // Trigger notifications
+    const notificationResult = await eventService.notifyAllUsers(req.params.id);
+    
+    res.json({
+      success: true,
+      message: 'Notifications envoyées avec succès',
+      notificationsSent: notificationResult.count
+    });
   } catch (error) {
-    console.error('Error getting event participants:', error);
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.error('Error sending notifications:', error);
+    res.status(500).json({ message: 'Erreur serveur lors de l\'envoi des notifications' });
   }
 });
 
