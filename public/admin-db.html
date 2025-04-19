@@ -199,6 +199,56 @@
             background-color: #eeffee;
             border: 1px solid #ccffcc;
         }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:focus + .slider {
+            box-shadow: 0 0 1px #2196F3;
+        }
+        input:checked + .slider:before {
+            -webkit-transform: translateX(26px);
+            -ms-transform: translateX(26px);
+            transform: translateX(26px);
+        }
+        .slider.round {
+            border-radius: 34px;
+        }
+        .slider.round:before {
+            border-radius: 50%;
+        }
     </style>
 </head>
 <body>
@@ -580,8 +630,15 @@
                     return;
                 }
                 
+                // Afficher/masquer les onglets en fonction des droits d'administration
+                if (!user.superAdmin) {
+                    // Cacher les onglets réservés aux super admins pour les admins simples
+                    document.querySelector('.tab[data-tab="debug"]').style.display = 'none';
+                    document.querySelector('.tab[data-tab="backup"]').style.display = 'none';
+                }
+                
                 // User is admin, can continue
-                console.log('Admin access granted');
+                console.log('Admin access granted. Super admin:', user.superAdmin ? 'Yes' : 'No');
             } catch (error) {
                 console.error('Error checking admin rights:', error);
                 localStorage.setItem('adminAccessError', 'Une erreur est survenue. Veuillez réessayer.');
@@ -607,6 +664,12 @@
         // Switch tabs
         tabs.forEach(tab => {
             tab.addEventListener('click', () => {
+                // Vérifier les droits de superAdmin pour les onglets réservés
+                if ((tab.dataset.tab === 'debug' || tab.dataset.tab === 'backup') && !checkSuperAdmin()) {
+                    alert('Cet onglet est réservé aux super administrateurs.');
+                    return;
+                }
+                
                 // Remove active class from all tabs and contents
                 tabs.forEach(t => t.classList.remove('active'));
                 tabContents.forEach(c => c.classList.remove('active'));
@@ -677,7 +740,7 @@
             }
             
             let html = '<table>';
-            html += '<tr><th>ID</th><th>Email</th><th>Mot de passe</th><th>Prénom</th><th>Nom</th><th>Vérifié</th><th>Admin</th><th>Super Admin</th><th>Code</th><th>Photo</th><th>Date Création</th></tr>';
+            html += '<tr><th>ID</th><th>Email</th><th>Mot de passe</th><th>Prénom</th><th>Nom</th><th>Vérifié</th><th>Admin</th><th>Super Admin</th><th>Organisateur</th><th>Code</th><th>Photo</th><th>Date Création</th><th>Actions</th></tr>';
             
             users.forEach(user => {
                 html += `<tr>
@@ -689,14 +752,88 @@
                     <td>${user.isVerified ? 'Oui' : 'Non'}</td>
                     <td>${user.admin ? 'Oui' : 'Non'}</td>
                     <td>${user.superAdmin ? 'Oui' : 'Non'}</td>
+                    <td>
+                        <label class="switch">
+                            <input type="checkbox" class="organizer-toggle" data-email="${user.email}" ${user.organizer ? 'checked' : ''}>
+                            <span class="slider round"></span>
+                        </label>
+                    </td>
                     <td>${user.verificationCode || '-'}</td>
                     <td>${user.profilePicture ? '<img src="/uploads/' + user.profilePicture + '" width="50">' : '-'}</td>
                     <td>${new Date(user.createdAt).toLocaleString()}</td>
+                    <td>
+                        <button class="change-password-btn" data-email="${user.email}">Changer MdP</button>
+                    </td>
                 </tr>`;
             });
             
             html += '</table>';
             usersData.innerHTML = html;
+            
+            // Ajouter des gestionnaires d'événements pour les boutons de changement de mot de passe
+            document.querySelectorAll('.change-password-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const email = btn.getAttribute('data-email');
+                    showPasswordChangeModal(email);
+                });
+            });
+            
+            // Ajouter des gestionnaires d'événements pour les toggles d'organisateur
+            document.querySelectorAll('.organizer-toggle').forEach(toggle => {
+                toggle.addEventListener('change', async function() {
+                    const email = this.getAttribute('data-email');
+                    const isOrganizer = this.checked;
+                    
+                    try {
+                        const confirmMessage = isOrganizer 
+                            ? `Voulez-vous accorder le statut d'organisateur à ${email}?` 
+                            : `Voulez-vous retirer le statut d'organisateur à ${email}?`;
+                        
+                        if (!confirm(confirmMessage)) {
+                            // Rétablir l'état du toggle en cas d'annulation
+                            this.checked = !isOrganizer;
+                            return;
+                        }
+                        
+                        // Spinner ou indication visuelle
+                        this.disabled = true;
+                        
+                        const response = await fetch(`${API_URL}/admin/user/organizer`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-auth-token': token
+                            },
+                            body: JSON.stringify({
+                                email,
+                                isOrganizer
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (!response.ok) {
+                            throw new Error(data.message || 'Erreur lors de la mise à jour du statut d\'organisateur');
+                        }
+                        
+                        // Notification de succès
+                        alert(data.message);
+                        
+                        // Réactiver le toggle
+                        this.disabled = false;
+                    } catch (error) {
+                        console.error('Error updating organizer status:', error);
+                        alert(`Erreur: ${error.message}`);
+                        
+                        // Rétablir l'état du toggle en cas d'erreur
+                        this.checked = !isOrganizer;
+                        this.disabled = false;
+                        
+                        // Actualiser les données si nécessaire
+                        fetchData();
+                    }
+                });
+            });
         }
         
         // Display events in a table
@@ -796,10 +933,35 @@
             participantsData.innerHTML = html;
         }
         
-        // Execute custom SQL query
+        // Function to check if user is Super Admin
+        function checkSuperAdmin() {
+            // Get the current user info from localStorage
+            const userInfoString = localStorage.getItem('userInfo');
+            if (!userInfoString) {
+                alert('Session utilisateur non valide. Veuillez vous reconnecter.');
+                return false;
+            }
+            
+            try {
+                const userInfo = JSON.parse(userInfoString);
+                return userInfo.superAdmin === true;
+            } catch (error) {
+                console.error('Error parsing user info:', error);
+                return false;
+            }
+        }
+        
+        // Execute SQL query
         executeQueryBtn.addEventListener('click', async () => {
-            const query = document.getElementById('sql-query').value.trim();
+            if (!checkSuperAdmin()) {
+                alert('Cette fonctionnalité est réservée aux super administrateurs.');
+                return;
+            }
+            
+            const queryEl = document.getElementById('sql-query');
             const resultEl = document.getElementById('query-result');
+            
+            const query = queryEl.value.trim();
             
             if (!query) {
                 resultEl.textContent = 'Veuillez entrer une requête SQL.';
@@ -839,6 +1001,11 @@
         
         // Test database connection
         testDbConnectionBtn.addEventListener('click', async () => {
+            if (!checkSuperAdmin()) {
+                alert('Cette fonctionnalité est réservée aux super administrateurs.');
+                return;
+            }
+            
             const resultEl = document.getElementById('test-result');
             
             try {
@@ -866,6 +1033,11 @@
         
         // Test database integrity
         testDbIntegrityBtn.addEventListener('click', async () => {
+            if (!checkSuperAdmin()) {
+                alert('Cette fonctionnalité est réservée aux super administrateurs.');
+                return;
+            }
+            
             const resultEl = document.getElementById('test-result');
             
             try {
@@ -985,10 +1157,15 @@
         
         // Fetch database errors
         fetchDbErrorsBtn.addEventListener('click', async () => {
-            const resultEl = document.getElementById('db-errors');
+            if (!checkSuperAdmin()) {
+                alert('Cette fonctionnalité est réservée aux super administrateurs.');
+                return;
+            }
+            
+            const errorsEl = document.getElementById('db-errors');
             
             try {
-                resultEl.textContent = 'Récupération des erreurs...';
+                errorsEl.textContent = 'Récupération des erreurs...';
                 
                 const response = await fetch(`${API_URL}/admin/db/errors`, {
                     headers: {
@@ -998,24 +1175,29 @@
                 const data = await response.json();
                 
                 if (!response.ok) {
-                    resultEl.textContent = `Erreur: ${data.error || response.statusText}`;
+                    errorsEl.textContent = `Erreur: ${data.error || response.statusText}`;
                     return;
                 }
                 
                 if (data.errors && data.errors.length > 0) {
-                    resultEl.textContent = `Dernières erreurs (${data.errors.length}):\n\n${data.errors.map((err, i) => `${i+1}. ${err.date}: ${err.message}\n   SQL: ${err.query || 'N/A'}\n   Code: ${err.code || 'N/A'}`).join('\n\n')}`;
+                    errorsEl.textContent = `Dernières erreurs (${data.errors.length}):\n\n${data.errors.map((err, i) => `${i+1}. ${err.date}: ${err.message}\n   SQL: ${err.query || 'N/A'}\n   Code: ${err.code || 'N/A'}`).join('\n\n')}`;
                 } else {
-                    resultEl.textContent = 'Aucune erreur récente trouvée.';
+                    errorsEl.textContent = 'Aucune erreur récente trouvée.';
                 }
                 
             } catch (error) {
                 console.error('Error fetching errors:', error);
-                resultEl.textContent = `Erreur de récupération: ${error.message}`;
+                errorsEl.textContent = `Erreur de récupération: ${error.message}`;
             }
         });
         
         // Create database backup
         createBackupBtn.addEventListener('click', async () => {
+            if (!checkSuperAdmin()) {
+                alert('Cette fonctionnalité est réservée aux super administrateurs.');
+                return;
+            }
+            
             const statusEl = document.getElementById('backup-status');
             const resultEl = document.getElementById('backup-result');
             
@@ -1046,6 +1228,12 @@
         
         // Fetch database backups
         async function fetchBackups() {
+            if (!checkSuperAdmin()) {
+                const backupsListEl = document.getElementById('backups-list');
+                backupsListEl.innerHTML = '<div class="error">Cette fonctionnalité est réservée aux super administrateurs.</div>';
+                return;
+            }
+            
             const backupsListEl = document.getElementById('backups-list');
             
             try {
@@ -1101,6 +1289,11 @@
         
         // Handle database restore
         async function handleRestore(event) {
+            if (!checkSuperAdmin()) {
+                alert('Cette fonctionnalité est réservée aux super administrateurs.');
+                return;
+            }
+            
             const filename = event.target.dataset.filename;
             
             if (!confirm(`Êtes-vous sûr de vouloir restaurer la base de données à partir de la sauvegarde "${filename}" ?\n\nCette action est irréversible et écrasera toutes les données actuelles.`)) {
@@ -1649,8 +1842,272 @@
             }
         });
         
+        // Fonction pour afficher la boîte de dialogue modale de changement de mot de passe
+        function showPasswordChangeModal(email) {
+            const modal = document.getElementById('password-modal');
+            const emailElement = document.getElementById('password-modal-email');
+            const userEmailInput = document.getElementById('password-user-email');
+            
+            emailElement.textContent = `Utilisateur: ${email}`;
+            userEmailInput.value = email;
+            
+            // Réinitialiser le formulaire et les messages
+            document.getElementById('password-change-form').reset();
+            document.getElementById('password-change-message').textContent = '';
+            document.getElementById('password-change-message').className = '';
+            
+            // Afficher la boîte de dialogue modale
+            modal.style.display = 'block';
+        }
+        
+        // Fermeture de la boîte de dialogue modale
+        document.querySelector('.close-modal').addEventListener('click', () => {
+            console.log('Bouton fermer cliqué');
+            document.getElementById('password-modal').style.display = 'none';
+        });
+        
+        // Supprimer ce gestionnaire d'événements dupliqué
+        // document.getElementById('cancel-password-change').addEventListener('click', () => {
+        //     document.getElementById('password-modal').style.display = 'none';
+        // });
+        
+        // Cliquer à l'extérieur de la boîte de dialogue modale pour la fermer
+        window.addEventListener('click', (event) => {
+            const modal = document.getElementById('password-modal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+        
+        // Gérer la soumission du formulaire de changement de mot de passe
+        document.getElementById('password-change-form').addEventListener('submit', async (e) => {
+            console.log('Formulaire de changement de mot de passe soumis');
+            e.preventDefault();
+            
+            const email = document.getElementById('password-user-email').value;
+            const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            const messageEl = document.getElementById('password-change-message');
+            
+            console.log('Valeurs du formulaire:', { 
+                email, 
+                passwordLength: newPassword.length, 
+                confirmPasswordLength: confirmPassword.length,
+                passwordsMatch: newPassword === confirmPassword
+            });
+            
+            // Vérifier que les mots de passe correspondent
+            if (newPassword !== confirmPassword) {
+                messageEl.textContent = 'Les mots de passe ne correspondent pas.';
+                messageEl.className = 'error';
+                return;
+            }
+            
+            try {
+                messageEl.textContent = 'Changement du mot de passe en cours...';
+                messageEl.className = '';
+                
+                console.log('Envoi de la requête de changement de mot de passe:', {
+                    url: `${API_URL}/auth/change-password`,
+                    method: 'POST',
+                    email: email,
+                    token: token ? token.substring(0, 10) + '...' : 'absent'
+                });
+                
+                const response = await fetch(`${API_URL}/auth/change-password`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-auth-token': token
+                    },
+                    body: JSON.stringify({
+                        email,
+                        newPassword
+                    })
+                });
+                
+                console.log('Réponse brute reçue:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: Object.fromEntries([...response.headers])
+                });
+                
+                const data = await response.json();
+                console.log('Données de réponse:', data);
+                
+                if (!response.ok) {
+                    const errorMsg = `Erreur ${response.status}: ${data.message || 'Erreur lors du changement de mot de passe'}`;
+                    console.error(errorMsg, data);
+                    throw new Error(errorMsg);
+                }
+                
+                messageEl.textContent = 'Mot de passe changé avec succès!';
+                messageEl.className = 'success';
+                
+                // Fermer la boîte de dialogue modale après un court délai
+                setTimeout(() => {
+                    document.getElementById('password-modal').style.display = 'none';
+                    // Actualiser les données
+                    fetchData();
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Error changing password:', error);
+                messageEl.textContent = error.message || 'Erreur lors du changement de mot de passe';
+                messageEl.className = 'error';
+            }
+        });
+        
+        // Correction du bouton d'annulation
+        document.getElementById('cancel-password-change').addEventListener('click', function() {
+            console.log('Bouton annuler cliqué');
+            document.getElementById('password-modal').style.display = 'none';
+        });
+        
         // Initial data load
         fetchData();
+    </script>
+    
+    <!-- Modal pour changer le mot de passe -->
+    <div id="password-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 1000; overflow: auto;">
+        <div class="modal-content" style="background-color: #fff; margin: 15% auto; padding: 20px; border-radius: 8px; width: 400px; max-width: 80%; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+            <span class="close-modal" style="float: right; font-size: 28px; font-weight: bold; cursor: pointer; color: #aaa;">&times;</span>
+            <h3>Changer le mot de passe</h3>
+            <p id="password-modal-email" style="margin-bottom: 15px; color: #666;"></p>
+            <form id="password-change-form">
+                <input type="hidden" id="password-user-email">
+                <div style="margin-bottom: 15px;">
+                    <label for="new-password" style="display: block; margin-bottom: 5px;">Nouveau mot de passe :</label>
+                    <input type="password" id="new-password" placeholder="Minimum 6 caractères" minlength="6" required style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label for="confirm-password" style="display: block; margin-bottom: 5px;">Confirmer le mot de passe :</label>
+                    <input type="password" id="confirm-password" placeholder="Confirmation du mot de passe" minlength="6" required style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div id="password-change-message" style="margin-bottom: 15px;"></div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" id="cancel-password-change" class="test-btn" style="padding: 8px 15px;">Annuler</button>
+                    <button type="submit" id="save-password-change" class="refresh-btn" style="padding: 8px 15px;">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // Vérifie si les boutons de la modale sont correctement initialisés
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM complètement chargé - Vérification des boutons de la modale');
+            const cancelBtn = document.getElementById('cancel-password-change');
+            const saveBtn = document.getElementById('save-password-change');
+            const modal = document.getElementById('password-modal');
+            
+            if (cancelBtn) {
+                console.log('Bouton Cancel trouvé dans le DOM');
+                // Assurons-nous que le bouton d'annulation fonctionne
+                cancelBtn.addEventListener('click', function() {
+                    console.log('Bouton annuler cliqué - Version améliorée');
+                    if (modal) {
+                        modal.style.display = 'none';
+                    } else {
+                        console.error('Modal non trouvée pour la cacher');
+                    }
+                });
+            } else {
+                console.error('Bouton Cancel NON trouvé dans le DOM!');
+            }
+            
+            if (saveBtn) {
+                console.log('Bouton Save trouvé dans le DOM');
+                // Ajouter un gestionnaire d'événements supplémentaire au bouton d'enregistrement
+                saveBtn.addEventListener('click', function(event) {
+                    console.log('Bouton enregistrer cliqué directement');
+                    
+                    // Empêcher la soumission par défaut du formulaire
+                    event.preventDefault();
+                    
+                    const email = document.getElementById('password-user-email').value;
+                    const newPassword = document.getElementById('new-password').value;
+                    const confirmPassword = document.getElementById('confirm-password').value;
+                    const messageEl = document.getElementById('password-change-message');
+                    
+                    console.log('Valeurs du formulaire (via clic direct):', { 
+                        email, 
+                        passwordLength: newPassword ? newPassword.length : 0,
+                        confirmPasswordLength: confirmPassword ? confirmPassword.length : 0,
+                        passwordsMatch: newPassword === confirmPassword
+                    });
+                    
+                    // Vérifier que les champs ne sont pas vides
+                    if (!email || !newPassword || !confirmPassword) {
+                        messageEl.textContent = 'Tous les champs sont requis';
+                        messageEl.className = 'error';
+                        return;
+                    }
+                    
+                    // Vérifier que les mots de passe correspondent
+                    if (newPassword !== confirmPassword) {
+                        messageEl.textContent = 'Les mots de passe ne correspondent pas';
+                        messageEl.className = 'error';
+                        return;
+                    }
+                    
+                    // Effectuer la requête AJAX manuellement
+                    messageEl.textContent = 'Changement du mot de passe en cours...';
+                    messageEl.className = '';
+                    
+                    console.log('Tentative d\'envoi de requête POST directe');
+                    
+                    fetch(`${API_URL}/auth/change-password`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-auth-token': token
+                        },
+                        body: JSON.stringify({
+                            email,
+                            newPassword
+                        })
+                    })
+                    .then(response => {
+                        console.log('Réponse directe reçue:', {
+                            status: response.status,
+                            statusText: response.statusText
+                        });
+                        return response.json().then(data => ({ status: response.status, data }));
+                    })
+                    .then(({ status, data }) => {
+                        console.log('Données de réponse directe:', data);
+                        
+                        if (status >= 200 && status < 300) {
+                            messageEl.textContent = 'Mot de passe changé avec succès!';
+                            messageEl.className = 'success';
+                            
+                            // Fermer la boîte de dialogue modale après un court délai
+                            setTimeout(() => {
+                                modal.style.display = 'none';
+                                // Actualiser les données
+                                fetchData();
+                            }, 1500);
+                        } else {
+                            throw new Error(data.message || 'Erreur lors du changement de mot de passe');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erreur de requête directe:', error);
+                        messageEl.textContent = error.message || 'Erreur lors du changement de mot de passe';
+                        messageEl.className = 'error';
+                    });
+                });
+            } else {
+                console.error('Bouton Save NON trouvé dans le DOM!');
+            }
+            
+            if (modal) {
+                console.log('Modal trouvée dans le DOM');
+            } else {
+                console.error('Modal NON trouvée dans le DOM!');
+            }
+        });
     </script>
 </body>
 </html> 

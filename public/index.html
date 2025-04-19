@@ -178,6 +178,25 @@
                 localStorage.setItem('token', token);
                 localStorage.setItem('userData', JSON.stringify(userData));
                 
+                // Sauvegarder les informations d'administration
+                fetch(`${API_URL}/users/me`, {
+                    headers: {
+                        'x-auth-token': token
+                    }
+                })
+                .then(res => res.json())
+                .then(userInfo => {
+                    // Sauvegarder les droits d'administration dans localStorage
+                    localStorage.setItem('userInfo', JSON.stringify({
+                        admin: userInfo.admin === true,
+                        superAdmin: userInfo.superAdmin === true,
+                        organizer: userInfo.organizer === true
+                    }));
+                    
+                    console.log('User info saved:', userInfo.admin, userInfo.superAdmin);
+                })
+                .catch(err => console.error('Failed to fetch user info:', err));
+                
                 messageEl.textContent = 'Connexion réussie! Redirection...';
                 messageEl.className = 'success';
                 
