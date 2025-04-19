@@ -129,6 +129,16 @@
         
         // Check if user is already authenticated
         function checkAuth() {
+            // Vérifier s'il y a un message d'erreur d'accès admin
+            const adminError = localStorage.getItem('adminAccessError');
+            if (adminError) {
+                const messageEl = document.getElementById('login-message');
+                messageEl.textContent = adminError;
+                messageEl.className = 'error';
+                // Effacer le message d'erreur pour ne l'afficher qu'une fois
+                localStorage.removeItem('adminAccessError');
+            }
+            
             if (token) {
                 // Redirect to users.html if already logged in
                 window.location.href = 'users.html';
@@ -167,6 +177,25 @@
                 userData = data.user;
                 localStorage.setItem('token', token);
                 localStorage.setItem('userData', JSON.stringify(userData));
+                
+                // Sauvegarder les informations d'administration
+                fetch(`${API_URL}/users/me`, {
+                    headers: {
+                        'x-auth-token': token
+                    }
+                })
+                .then(res => res.json())
+                .then(userInfo => {
+                    // Sauvegarder les droits d'administration dans localStorage
+                    localStorage.setItem('userInfo', JSON.stringify({
+                        admin: userInfo.admin === true,
+                        superAdmin: userInfo.superAdmin === true,
+                        organizer: userInfo.organizer === true
+                    }));
+                    
+                    console.log('User info saved:', userInfo.admin, userInfo.superAdmin);
+                })
+                .catch(err => console.error('Failed to fetch user info:', err));
                 
                 messageEl.textContent = 'Connexion réussie! Redirection...';
                 messageEl.className = 'success';

@@ -68,6 +68,32 @@ const emailService = {
         minute: '2-digit'
       });
 
+      // Préparation des informations techniques si disponibles
+      let technicalInfoHtml = '';
+      if (event.effortIPB || event.technicite || event.risques || 
+          event.altitudeMin || event.altitudeMax || event.denivele || event.distance) {
+        
+        technicalInfoHtml = `
+          <div style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 15px;">
+            <h4 style="margin-top: 0;">Informations techniques</h4>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                ${event.effortIPB ? `<td style="padding: 5px;"><strong>Effort IPB:</strong> ${event.effortIPB}/5</td>` : ''}
+                ${event.technicite ? `<td style="padding: 5px;"><strong>Technicité:</strong> ${event.technicite}/5</td>` : ''}
+                ${event.risques ? `<td style="padding: 5px;"><strong>Risques:</strong> ${event.risques}/5</td>` : ''}
+              </tr>
+              <tr>
+                ${event.altitudeMin ? `<td style="padding: 5px;"><strong>Altitude min:</strong> ${event.altitudeMin}m</td>` : ''}
+                ${event.altitudeMax ? `<td style="padding: 5px;"><strong>Altitude max:</strong> ${event.altitudeMax}m</td>` : ''}
+                ${event.denivele ? `<td style="padding: 5px;"><strong>Dénivelé:</strong> ${event.denivele}m</td>` : ''}
+              </tr>
+              ${event.distance ? `<tr><td style="padding: 5px;"><strong>Distance:</strong> ${event.distance}km</td></tr>` : ''}
+            </table>
+            ${event.visiorando ? `<p><strong>Visiorando:</strong> <a href="https://www.visiorando.com/fr/randonnee/${event.visiorando}" target="_blank">Voir sur Visiorando</a></p>` : ''}
+          </div>
+        `;
+      }
+
       const mailOptions = {
         from: `"Application Randonnée" <${process.env.EMAIL_USER}>`,
         to: user.email,
@@ -81,6 +107,7 @@ const emailService = {
             <p><strong>Lieu:</strong> ${event.location}</p>
             <p><strong>Point de départ:</strong> ${event.startPoint}</p>
             ${event.description ? `<p><strong>Description:</strong> ${event.description}</p>` : ''}
+            ${technicalInfoHtml}
           </div>
           <p>Nous vous attendons avec impatience!</p>
           <p>Cordialement,<br>L'équipe Rando</p>
@@ -121,6 +148,32 @@ const emailService = {
         minute: '2-digit'
       });
 
+      // Préparation des informations techniques si disponibles
+      let technicalInfoHtml = '';
+      if (event.effortIPB || event.technicite || event.risques || 
+          event.altitudeMin || event.altitudeMax || event.denivele || event.distance) {
+        
+        technicalInfoHtml = `
+          <div style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 15px;">
+            <h4 style="margin-top: 0;">Informations techniques</h4>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                ${event.effortIPB ? `<td style="padding: 5px;"><strong>Effort IPB:</strong> ${event.effortIPB}/5</td>` : ''}
+                ${event.technicite ? `<td style="padding: 5px;"><strong>Technicité:</strong> ${event.technicite}/5</td>` : ''}
+                ${event.risques ? `<td style="padding: 5px;"><strong>Risques:</strong> ${event.risques}/5</td>` : ''}
+              </tr>
+              <tr>
+                ${event.altitudeMin ? `<td style="padding: 5px;"><strong>Altitude min:</strong> ${event.altitudeMin}m</td>` : ''}
+                ${event.altitudeMax ? `<td style="padding: 5px;"><strong>Altitude max:</strong> ${event.altitudeMax}m</td>` : ''}
+                ${event.denivele ? `<td style="padding: 5px;"><strong>Dénivelé:</strong> ${event.denivele}m</td>` : ''}
+              </tr>
+              ${event.distance ? `<tr><td style="padding: 5px;"><strong>Distance:</strong> ${event.distance}km</td></tr>` : ''}
+            </table>
+            ${event.visiorando ? `<p><strong>Visiorando:</strong> <a href="https://www.visiorando.com/fr/randonnee/${event.visiorando}" target="_blank">Voir sur Visiorando</a></p>` : ''}
+          </div>
+        `;
+      }
+
       const mailOptions = {
         from: `"Application Randonnée" <${process.env.EMAIL_USER}>`,
         to: user.email,
@@ -135,6 +188,7 @@ const emailService = {
             <p><strong>Point de départ:</strong> ${event.startPoint || 'Non spécifié'}</p>
             <p><strong>Difficulté:</strong> ${event.difficulty || 'Non spécifiée'}</p>
             ${event.description ? `<p><strong>Description:</strong> ${event.description}</p>` : ''}
+            ${technicalInfoHtml}
           </div>
           <p>Merci pour votre inscription. Nous vous enverrons un rappel avant l'événement.</p>
           <p>Cordialement,<br>L'équipe Rando</p>

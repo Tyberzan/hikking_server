@@ -119,6 +119,23 @@
         .user-info {
             font-weight: bold;
             color: #3498db;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .admin-btn {
+            background-color: #e67e22;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+            width: auto;
+        }
+        .admin-btn:hover {
+            background-color: #d35400;
         }
     </style>
 </head>
@@ -127,6 +144,7 @@
         <h1>MJC Rando</h1>
         <div class="user-info">
             <span id="user-name">Chargement...</span>
+            <button id="admin-btn" class="admin-btn hidden">Administration</button>
             <button id="logout-btn" class="logout-btn">Déconnexion</button>
         </div>
     </div>
@@ -172,6 +190,7 @@
         
         // DOM elements
         const logoutBtn = document.getElementById('logout-btn');
+        const adminBtn = document.getElementById('admin-btn');
         const eventsList = document.getElementById('events-list');
         const eventDetails = document.getElementById('event-details');
         const registerEventBtn = document.getElementById('register-event-btn');
@@ -191,6 +210,9 @@
             if (userData && userData.firstName) {
                 userNameEl.textContent = `${userData.firstName} ${userData.lastName || ''}`;
             }
+            
+            // Check admin status and show/hide admin button
+            checkAdminStatus();
             
             // Load events data
             fetchEvents();
@@ -499,6 +521,37 @@
             eventDetails.classList.add('hidden');
             document.getElementById('event-action-message').textContent = '';
             currentEventId = null;
+        });
+        
+        // Check if user has admin privileges and show/hide admin button
+        async function checkAdminStatus() {
+            try {
+                const response = await fetchWithAuth(`${API_URL}/users/me`);
+                
+                if (!response.ok) {
+                    throw new Error('Erreur lors de la récupération du profil utilisateur');
+                }
+                
+                const user = await response.json();
+                
+                // Store user data
+                localStorage.setItem('userData', JSON.stringify(user));
+                userData = user;
+                
+                // Show admin button if user is admin or superAdmin
+                if (user.admin || user.superAdmin) {
+                    adminBtn.classList.remove('hidden');
+                } else {
+                    adminBtn.classList.add('hidden');
+                }
+            } catch (error) {
+                console.error('Error checking admin status:', error);
+            }
+        }
+        
+        // Admin button click handler
+        adminBtn.addEventListener('click', () => {
+            window.location.href = '/admin';
         });
         
         // Logout button click handler

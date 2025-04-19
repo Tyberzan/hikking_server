@@ -19,7 +19,16 @@ router.post(
     body('startPoint', 'Le point de départ est requis').notEmpty(),
     body('date', 'La date est requise').notEmpty().isISO8601().withMessage('Format de date invalide'),
     body('duration', 'La durée doit être un nombre').optional().isNumeric(),
-    body('difficulty', 'La difficulté doit être facile, moyenne ou difficile').optional().isIn(['facile', 'moyenne', 'difficile'])
+    body('difficulty', 'La difficulté doit être facile, moyenne ou difficile').optional().isIn(['facile', 'moyenne', 'difficile']),
+    // Validation des nouveaux champs
+    body('effortIPB', 'L\'effort IPB doit être un nombre entre 1 et 5').optional().isInt({ min: 1, max: 200 }),
+    body('technicite', 'La technicité doit être un nombre entre 1 et 5').optional().isInt({ min: 1, max: 5 }),
+    body('risques', 'Les risques doivent être un nombre entre 1 et 5').optional().isInt({ min: 1, max: 5 }),
+    body('altitudeMin', 'L\'altitude minimum doit être un nombre positif').optional().isInt({ min: 0 }),
+    body('altitudeMax', 'L\'altitude maximum doit être un nombre positif').optional().isInt({ min: 0 }),
+    body('denivele', 'Le dénivelé doit être un nombre positif').optional().isInt({ min: 0 }),
+    body('visiorando', 'Le lien Visiorando est invalide').optional(),
+    body('distance', 'La distance doit être un nombre positif').optional().isFloat({ min: 0 })
   ],
   async (req, res) => {
     // Check for validation errors
@@ -286,5 +295,98 @@ router.post('/:id/notify', auth, async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur lors de l\'envoi des notifications' });
   }
 });
+
+// @route   PUT /api/events/:id
+// @desc    Update an event
+// @access  Private (admin only)
+router.put(
+  '/:id',
+  [
+    auth,
+    body('name', 'Le nom est requis').notEmpty(),
+    body('location', 'Le lieu est requis').notEmpty(),
+    body('startPoint', 'Le point de départ est requis').notEmpty(),
+    body('date', 'La date est requise').notEmpty().isISO8601().withMessage('Format de date invalide'),
+    body('duration', 'La durée doit être un nombre').optional().isNumeric(),
+    body('difficulty', 'La difficulté doit être facile, moyenne ou difficile').optional().isIn(['facile', 'moyenne', 'difficile']),
+    // Validation des champs techniques
+    body('effortIPB', 'L\'effort IPB doit être un nombre entre 1 et 5').optional().isInt({ min: 1, max: 200 }),
+    body('technicite', 'La technicité doit être un nombre entre 1 et 5').optional().isInt({ min: 1, max: 5 }),
+    body('risques', 'Les risques doivent être un nombre entre 1 et 5').optional().isInt({ min: 1, max: 5 }),
+    body('altitudeMin', 'L\'altitude minimum doit être un nombre positif').optional().isInt({ min: 0 }),
+    body('altitudeMax', 'L\'altitude maximum doit être un nombre positif').optional().isInt({ min: 0 }),
+    body('denivele', 'Le dénivelé doit être un nombre positif').optional().isInt({ min: 0 }),
+    body('visiorando', 'Le lien Visiorando est invalide').optional(),
+    body('distance', 'La distance doit être un nombre positif').optional().isFloat({ min: 0 })
+  ],
+  async (req, res) => {
+    // Vérifier les droits d'admin
+    if (!req.user.admin && !req.user.superAdmin) {
+      return res.status(403).json({ message: 'Accès non autorisé. Privilèges administrateur requis.' });
+    }
+
+    // Check for validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      // Vérifier si l'événement existe
+      const eventId = req.params.id;
+      const event = await eventService.getEventById(eventId);
+      
+      if (!event) {
+        return res.status(404).json({ message: 'Événement non trouvé' });
+      }
+      
+      // Mettre à jour l'événement dans la base de données
+      const updateFields = [
+        'name', 'location', 'startPoint', 'date', 'duration', 'difficulty', 'description',
+        'effortIPB', 'technicite', 'risques', 'altitudeMin', 'altitudeMax', 'denivele', 
+        'visiorando', 'distance'
+      ];
+      
+      const updateData = {};
+      updateFields.forEach(field => {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field];
+        }
+      });
+      
+      // Créer la requête SQL dynamique
+      const fieldsToUpdate = Object.keys(updateData).map(field => `${field} = ?`).join(', ');
+      const values = Object.values(updateData);
+      
+      // Ajouter l'ID de l'événement à la fin du tableau de valeurs
+      values.push(eventId);
+      
+      return new Promise((resolve, reject) => {
+        const sql = `UPDATE events SET ${fieldsToUpdate} WHERE id = ?`;
+        
+        db.run(sql, values, function(err) {
+          if (err) {
+            console.error('Error updating event:', err);
+            return res.status(500).json({ message: 'Erreur serveur' });
+          }
+          
+          if (this.changes === 0) {
+            return res.status(404).json({ message: 'Événement non trouvé ou aucune modification effectuée' });
+          }
+          
+          res.json({
+            success: true,
+            message: 'Événement mis à jour avec succès',
+            eventId
+          });
+        });
+      });
+      
+    } catch (error) {
+      console.error('Error updating event:', error);
+      res.status(500).json({ message: 'Erreur serveur' });
+    }
+  }
+);
 
 module.exports = router; 

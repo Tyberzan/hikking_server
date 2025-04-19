@@ -199,10 +199,63 @@
             background-color: #eeffee;
             border: 1px solid #ccffcc;
         }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:focus + .slider {
+            box-shadow: 0 0 1px #2196F3;
+        }
+        input:checked + .slider:before {
+            -webkit-transform: translateX(26px);
+            -ms-transform: translateX(26px);
+            transform: translateX(26px);
+        }
+        .slider.round {
+            border-radius: 34px;
+        }
+        .slider.round:before {
+            border-radius: 50%;
+        }
     </style>
 </head>
 <body>
-    <a href="/" class="back-link">← Retour à l'application</a>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <a href="/" class="back-link">← Retour à l'application</a>
+        <button id="logout-btn" class="refresh-btn" style="margin: 0;">Déconnexion</button>
+    </div>
     <h1>Administration Base de Données</h1>
     
     <button id="refresh-data" class="refresh-btn">Actualiser les données</button>
@@ -213,6 +266,7 @@
         <div class="tab" data-tab="events">Événements</div>
         <div class="tab" data-tab="participants">Participants</div>
         <div class="tab" data-tab="create-event">Créer une randonnée</div>
+        <div class="tab" data-tab="edit-event" style="display: none;">Modifier une randonnée</div>
         <div class="tab" data-tab="user-management">Gestion des utilisateurs</div>
         <div class="tab" data-tab="debug">Débogage SQLite</div>
         <div class="tab" data-tab="backup">Sauvegarde & Restauration</div>
@@ -299,11 +353,123 @@
                 </div>
             </div>
             
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; background-color: #f5f5f5; padding: 15px; border-radius: 8px;">
+                <h3 style="width: 100%; margin-top: 0; margin-bottom: 10px;">Informations techniques</h3>
+                
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="event-effortIPB">Effort IPB:</label>
+                    <input type="number" id="event-effortIPB" placeholder="Effort IPB" min="1" max="5">
+                    
+                    <label for="event-technicite">Technicité:</label>
+                    <input type="number" id="event-technicite" placeholder="Technicité" min="1" max="5">
+                    
+                    <label for="event-risques">Risques:</label>
+                    <input type="number" id="event-risques" placeholder="Risques" min="1" max="5">
+                </div>
+                
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="event-altitudeMin">Altitude minimum (m):</label>
+                    <input type="number" id="event-altitudeMin" placeholder="Altitude minimum (m)">
+                    
+                    <label for="event-altitudeMax">Altitude maximum (m):</label>
+                    <input type="number" id="event-altitudeMax" placeholder="Altitude maximum (m)">
+                    
+                    <label for="event-denivele">Dénivelé (m):</label>
+                    <input type="number" id="event-denivele" placeholder="Dénivelé (m)">
+                    
+                    <label for="event-distance">Distance (km):</label>
+                    <input type="number" id="event-distance" placeholder="Distance (km)" min="0" step="0.1">
+                </div>
+                
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="event-visiorando">Lien Visiorando:</label>
+                    <input type="text" id="event-visiorando" placeholder="ID Visiorando">
+                </div>
+            </div>
+            
             <label for="event-description">Description:</label>
             <textarea id="event-description" placeholder="Description" rows="4"></textarea>
             
             <button type="submit" class="refresh-btn" style="margin-top: 10px;">Créer l'événement</button>
             <div id="create-event-message" style="margin-top: 10px;"></div>
+        </form>
+    </div>
+    
+    <div id="edit-event" class="tab-content">
+        <h2>Modifier une randonnée</h2>
+        <form id="edit-event-form">
+            <input type="hidden" id="edit-event-id">
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
+                <div style="flex: 1; min-width: 300px;">
+                    <label for="edit-event-name">Nom de l'événement:</label>
+                    <input type="text" id="edit-event-name" placeholder="Nom de l'événement" required>
+                    
+                    <label for="edit-event-location">Lieu:</label>
+                    <input type="text" id="edit-event-location" placeholder="Lieu" required>
+                    
+                    <label for="edit-event-startPoint">Point de départ:</label>
+                    <input type="text" id="edit-event-startPoint" placeholder="Point de départ" required>
+                </div>
+                
+                <div style="flex: 1; min-width: 300px;">
+                    <label for="edit-event-date">Date et heure:</label>
+                    <input type="datetime-local" id="edit-event-date" required>
+                    
+                    <label for="edit-event-duration">Durée (en heures):</label>
+                    <input type="number" id="edit-event-duration" placeholder="Durée (en heures)" min="1" required>
+                    
+                    <label for="edit-event-difficulty">Difficulté:</label>
+                    <select id="edit-event-difficulty" required>
+                        <option value="">Sélectionner la difficulté</option>
+                        <option value="facile">Facile</option>
+                        <option value="moyenne">Moyenne</option>
+                        <option value="difficile">Difficile</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; background-color: #f5f5f5; padding: 15px; border-radius: 8px;">
+                <h3 style="width: 100%; margin-top: 0; margin-bottom: 10px;">Informations techniques</h3>
+                
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="edit-event-effortIPB">Effort IPB:</label>
+                    <input type="number" id="edit-event-effortIPB" placeholder="Effort IPB" min="1" max="5">
+                    
+                    <label for="edit-event-technicite">Technicité:</label>
+                    <input type="number" id="edit-event-technicite" placeholder="Technicité" min="1" max="5">
+                    
+                    <label for="edit-event-risques">Risques:</label>
+                    <input type="number" id="edit-event-risques" placeholder="Risques" min="1" max="5">
+                </div>
+                
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="edit-event-altitudeMin">Altitude minimum (m):</label>
+                    <input type="number" id="edit-event-altitudeMin" placeholder="Altitude minimum (m)">
+                    
+                    <label for="edit-event-altitudeMax">Altitude maximum (m):</label>
+                    <input type="number" id="edit-event-altitudeMax" placeholder="Altitude maximum (m)">
+                    
+                    <label for="edit-event-denivele">Dénivelé (m):</label>
+                    <input type="number" id="edit-event-denivele" placeholder="Dénivelé (m)">
+                    
+                    <label for="edit-event-distance">Distance (km):</label>
+                    <input type="number" id="edit-event-distance" placeholder="Distance (km)" min="0" step="0.1">
+                </div>
+                
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="edit-event-visiorando">Lien Visiorando:</label>
+                    <input type="text" id="edit-event-visiorando" placeholder="ID Visiorando">
+                </div>
+            </div>
+            
+            <label for="edit-event-description">Description:</label>
+            <textarea id="edit-event-description" placeholder="Description" rows="4"></textarea>
+            
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button type="submit" class="refresh-btn">Enregistrer les modifications</button>
+                <button type="button" id="cancel-edit-btn" class="test-btn">Annuler</button>
+            </div>
+            <div id="edit-event-message" style="margin-top: 10px;"></div>
         </form>
     </div>
     
@@ -354,6 +520,29 @@
                     <button id="send-test-email" class="refresh-btn">Envoyer un email de test</button>
                     <div id="test-email-message" class="message"></div>
                 </div>
+            </div>
+            
+            <div class="card" style="flex: 1; min-width: 300px; background: #f9f9f9; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); margin-top: 20px;">
+                <h3>Gestion des privilèges</h3>
+                <form id="admin-privileges-form">
+                    <label for="admin-email">Email de l'utilisateur:</label>
+                    <input type="email" id="admin-email" placeholder="Email" required>
+                    
+                    <div style="display: flex; gap: 10px; margin: 10px 0;">
+                        <div style="flex: 1;">
+                            <label for="admin-role">Rôle:</label>
+                            <select id="admin-role" required>
+                                <option value="">Sélectionner un rôle</option>
+                                <option value="user">Utilisateur</option>
+                                <option value="admin">Administrateur</option>
+                                <option value="superadmin">Super Administrateur</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="refresh-btn" style="margin-top: 10px;">Mettre à jour les privilèges</button>
+                    <div id="privileges-message" class="message"></div>
+                </form>
             </div>
         </div>
     </div>
@@ -410,6 +599,56 @@
         
         const API_URL = `http://${getCurrentHost()}:3000/api`;
         
+        // Script to check if user has admin rights
+        const token = localStorage.getItem('token');
+        
+        async function checkAdminRights() {
+            try {
+                if (!token) {
+                    localStorage.setItem('adminAccessError', 'Vous devez être connecté pour accéder à cette page.');
+                    window.location.href = '/index.html';
+                    return;
+                }
+                
+                const response = await fetch(`${API_URL}/users/me`, {
+                    headers: {
+                        'x-auth-token': token
+                    }
+                });
+                
+                if (!response.ok) {
+                    localStorage.setItem('adminAccessError', 'Erreur d\'authentification. Veuillez vous reconnecter.');
+                    window.location.href = '/index.html';
+                    return;
+                }
+                
+                const user = await response.json();
+                
+                if (!user.admin && !user.superAdmin) {
+                    localStorage.setItem('adminAccessError', 'Accès refusé. Vous n\'avez pas les droits d\'administrateur.');
+                    window.location.href = '/users.html';
+                    return;
+                }
+                
+                // Afficher/masquer les onglets en fonction des droits d'administration
+                if (!user.superAdmin) {
+                    // Cacher les onglets réservés aux super admins pour les admins simples
+                    document.querySelector('.tab[data-tab="debug"]').style.display = 'none';
+                    document.querySelector('.tab[data-tab="backup"]').style.display = 'none';
+                }
+                
+                // User is admin, can continue
+                console.log('Admin access granted. Super admin:', user.superAdmin ? 'Yes' : 'No');
+            } catch (error) {
+                console.error('Error checking admin rights:', error);
+                localStorage.setItem('adminAccessError', 'Une erreur est survenue. Veuillez réessayer.');
+                window.location.href = '/index.html';
+            }
+        }
+        
+        // Check admin rights when page loads
+        checkAdminRights();
+        
         // DOM elements
         const tabs = document.querySelectorAll('.tab');
         const tabContents = document.querySelectorAll('.tab-content');
@@ -425,6 +664,12 @@
         // Switch tabs
         tabs.forEach(tab => {
             tab.addEventListener('click', () => {
+                // Vérifier les droits de superAdmin pour les onglets réservés
+                if ((tab.dataset.tab === 'debug' || tab.dataset.tab === 'backup') && !checkSuperAdmin()) {
+                    alert('Cet onglet est réservé aux super administrateurs.');
+                    return;
+                }
+                
                 // Remove active class from all tabs and contents
                 tabs.forEach(t => t.classList.remove('active'));
                 tabContents.forEach(c => c.classList.remove('active'));
@@ -448,19 +693,31 @@
                 timestampEl.textContent = `Dernière actualisation: ${now.toLocaleString()}`;
                 
                 // Fetch users
-                const usersResponse = await fetch(`${API_URL}/admin/db/users`);
+                const usersResponse = await fetch(`${API_URL}/admin/db/users`, {
+                    headers: {
+                        'x-auth-token': token
+                    }
+                });
                 if (!usersResponse.ok) throw new Error(`Erreur lors du chargement des utilisateurs: ${usersResponse.statusText}`);
                 const users = await usersResponse.json();
                 displayUsers(users);
                 
                 // Fetch events
-                const eventsResponse = await fetch(`${API_URL}/admin/db/events`);
+                const eventsResponse = await fetch(`${API_URL}/admin/db/events`, {
+                    headers: {
+                        'x-auth-token': token
+                    }
+                });
                 if (!eventsResponse.ok) throw new Error(`Erreur lors du chargement des événements: ${eventsResponse.statusText}`);
                 const events = await eventsResponse.json();
                 displayEvents(events);
                 
                 // Fetch participants
-                const participantsResponse = await fetch(`${API_URL}/admin/db/participants`);
+                const participantsResponse = await fetch(`${API_URL}/admin/db/participants`, {
+                    headers: {
+                        'x-auth-token': token
+                    }
+                });
                 if (!participantsResponse.ok) throw new Error(`Erreur lors du chargement des participants: ${participantsResponse.statusText}`);
                 const participants = await participantsResponse.json();
                 displayParticipants(participants);
@@ -483,7 +740,7 @@
             }
             
             let html = '<table>';
-            html += '<tr><th>ID</th><th>Email</th><th>Mot de passe</th><th>Prénom</th><th>Nom</th><th>Vérifié</th><th>Code</th><th>Photo</th><th>Date Création</th></tr>';
+            html += '<tr><th>ID</th><th>Email</th><th>Mot de passe</th><th>Prénom</th><th>Nom</th><th>Vérifié</th><th>Admin</th><th>Super Admin</th><th>Organisateur</th><th>Code</th><th>Photo</th><th>Date Création</th><th>Actions</th></tr>';
             
             users.forEach(user => {
                 html += `<tr>
@@ -493,14 +750,90 @@
                     <td>${user.firstName}</td>
                     <td>${user.lastName}</td>
                     <td>${user.isVerified ? 'Oui' : 'Non'}</td>
+                    <td>${user.admin ? 'Oui' : 'Non'}</td>
+                    <td>${user.superAdmin ? 'Oui' : 'Non'}</td>
+                    <td>
+                        <label class="switch">
+                            <input type="checkbox" class="organizer-toggle" data-email="${user.email}" ${user.organizer ? 'checked' : ''}>
+                            <span class="slider round"></span>
+                        </label>
+                    </td>
                     <td>${user.verificationCode || '-'}</td>
                     <td>${user.profilePicture ? '<img src="/uploads/' + user.profilePicture + '" width="50">' : '-'}</td>
                     <td>${new Date(user.createdAt).toLocaleString()}</td>
+                    <td>
+                        <button class="change-password-btn" data-email="${user.email}">Changer MdP</button>
+                    </td>
                 </tr>`;
             });
             
             html += '</table>';
             usersData.innerHTML = html;
+            
+            // Ajouter des gestionnaires d'événements pour les boutons de changement de mot de passe
+            document.querySelectorAll('.change-password-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const email = btn.getAttribute('data-email');
+                    showPasswordChangeModal(email);
+                });
+            });
+            
+            // Ajouter des gestionnaires d'événements pour les toggles d'organisateur
+            document.querySelectorAll('.organizer-toggle').forEach(toggle => {
+                toggle.addEventListener('change', async function() {
+                    const email = this.getAttribute('data-email');
+                    const isOrganizer = this.checked;
+                    
+                    try {
+                        const confirmMessage = isOrganizer 
+                            ? `Voulez-vous accorder le statut d'organisateur à ${email}?` 
+                            : `Voulez-vous retirer le statut d'organisateur à ${email}?`;
+                        
+                        if (!confirm(confirmMessage)) {
+                            // Rétablir l'état du toggle en cas d'annulation
+                            this.checked = !isOrganizer;
+                            return;
+                        }
+                        
+                        // Spinner ou indication visuelle
+                        this.disabled = true;
+                        
+                        const response = await fetch(`${API_URL}/admin/user/organizer`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-auth-token': token
+                            },
+                            body: JSON.stringify({
+                                email,
+                                isOrganizer
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (!response.ok) {
+                            throw new Error(data.message || 'Erreur lors de la mise à jour du statut d\'organisateur');
+                        }
+                        
+                        // Notification de succès
+                        alert(data.message);
+                        
+                        // Réactiver le toggle
+                        this.disabled = false;
+                    } catch (error) {
+                        console.error('Error updating organizer status:', error);
+                        alert(`Erreur: ${error.message}`);
+                        
+                        // Rétablir l'état du toggle en cas d'erreur
+                        this.checked = !isOrganizer;
+                        this.disabled = false;
+                        
+                        // Actualiser les données si nécessaire
+                        fetchData();
+                    }
+                });
+            });
         }
         
         // Display events in a table
@@ -529,6 +862,7 @@
                     <td>
                         <button class="view-participants-btn" data-event-id="${event.id}" data-event-name="${event.name}">Voir participants</button>
                         <button class="notify-event-btn" data-event-id="${event.id}" data-event-name="${event.name}">Envoyer notification</button>
+                        <button class="edit-event-btn" data-event-id="${event.id}">Modifier</button>
                     </td>
                 </tr>`;
             });
@@ -551,6 +885,14 @@
                     const eventId = btn.getAttribute('data-event-id');
                     const eventName = btn.getAttribute('data-event-name');
                     sendEventNotification(eventId, eventName);
+                });
+            });
+            
+            // Ajouter des gestionnaires d'événements pour les boutons de modification
+            document.querySelectorAll('.edit-event-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const eventId = btn.getAttribute('data-event-id');
+                    fetchEventForEdit(eventId);
                 });
             });
         }
@@ -591,10 +933,35 @@
             participantsData.innerHTML = html;
         }
         
-        // Execute custom SQL query
+        // Function to check if user is Super Admin
+        function checkSuperAdmin() {
+            // Get the current user info from localStorage
+            const userInfoString = localStorage.getItem('userInfo');
+            if (!userInfoString) {
+                alert('Session utilisateur non valide. Veuillez vous reconnecter.');
+                return false;
+            }
+            
+            try {
+                const userInfo = JSON.parse(userInfoString);
+                return userInfo.superAdmin === true;
+            } catch (error) {
+                console.error('Error parsing user info:', error);
+                return false;
+            }
+        }
+        
+        // Execute SQL query
         executeQueryBtn.addEventListener('click', async () => {
-            const query = document.getElementById('sql-query').value.trim();
+            if (!checkSuperAdmin()) {
+                alert('Cette fonctionnalité est réservée aux super administrateurs.');
+                return;
+            }
+            
+            const queryEl = document.getElementById('sql-query');
             const resultEl = document.getElementById('query-result');
+            
+            const query = queryEl.value.trim();
             
             if (!query) {
                 resultEl.textContent = 'Veuillez entrer une requête SQL.';
@@ -606,7 +973,10 @@
                 
                 const response = await fetch(`${API_URL}/admin/db/query`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-auth-token': token
+                    },
                     body: JSON.stringify({ query })
                 });
                 
@@ -631,12 +1001,21 @@
         
         // Test database connection
         testDbConnectionBtn.addEventListener('click', async () => {
+            if (!checkSuperAdmin()) {
+                alert('Cette fonctionnalité est réservée aux super administrateurs.');
+                return;
+            }
+            
             const resultEl = document.getElementById('test-result');
             
             try {
                 resultEl.textContent = 'Test de connexion en cours...';
                 
-                const response = await fetch(`${API_URL}/admin/db/test-connection`);
+                const response = await fetch(`${API_URL}/admin/db/test-connection`, {
+                    headers: {
+                        'x-auth-token': token
+                    }
+                });
                 const data = await response.json();
                 
                 if (!response.ok) {
@@ -654,12 +1033,21 @@
         
         // Test database integrity
         testDbIntegrityBtn.addEventListener('click', async () => {
+            if (!checkSuperAdmin()) {
+                alert('Cette fonctionnalité est réservée aux super administrateurs.');
+                return;
+            }
+            
             const resultEl = document.getElementById('test-result');
             
             try {
                 resultEl.textContent = 'Vérification de l\'intégrité en cours...';
                 
-                const response = await fetch(`${API_URL}/admin/db/integrity`);
+                const response = await fetch(`${API_URL}/admin/db/integrity`, {
+                    headers: {
+                        'x-auth-token': token
+                    }
+                });
                 const data = await response.json();
                 
                 if (!response.ok) {
@@ -690,7 +1078,11 @@
                 participantsContainer.style.display = 'block';
                 eventsData.style.display = 'none';
                 
-                const response = await fetch(`${API_URL}/events/${eventId}/participants`);
+                const response = await fetch(`${API_URL}/events/${eventId}/participants`, {
+                    headers: {
+                        'x-auth-token': token
+                    }
+                });
                 
                 if (!response.ok) {
                     throw new Error(`Erreur: ${response.statusText}`);
@@ -699,57 +1091,61 @@
                 const participants = await response.json();
                 
                 if (!participants || participants.length === 0) {
-                    participantsData.innerHTML = '<p>Aucun participant trouvé pour cet événement.</p>';
+                    participantsData.innerHTML = '<p>Aucun participant inscrit à cet événement.</p>';
                     return;
                 }
                 
-                let html = '<table>';
-                html += '<tr><th>ID</th><th>Nom</th><th>Email</th><th>Statut</th><th>Date inscription</th></tr>';
+                // Afficher les participants dans un tableau
+                let html = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Email</th>
+                                <th>Statut</th>
+                                <th>Date d'inscription</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
                 
-                let registeredCount = 0;
-                let canceledCount = 0;
-                
-                participants.forEach(p => {
-                    let statusHtml = '';
-                    
-                    if (p.status === 'registered') {
-                        statusHtml = '<span style="color: green; font-weight: bold;">Inscrit</span>';
-                        registeredCount++;
-                    } else if (p.status === 'canceled') {
-                        statusHtml = '<span style="color: red; font-weight: bold;">Annulé</span>';
-                        canceledCount++;
-                    } else if (p.status === 'attended') {
-                        statusHtml = '<span style="color: blue; font-weight: bold;">Présent</span>';
-                    } else {
-                        statusHtml = p.status;
+                participants.forEach(participant => {
+                    let statusStyle = '';
+                    if (participant.status === 'registered') {
+                        statusStyle = 'color: green; font-weight: bold;';
+                    } else if (participant.status === 'canceled') {
+                        statusStyle = 'color: red; font-weight: bold;';
+                    } else if (participant.status === 'attended') {
+                        statusStyle = 'color: blue; font-weight: bold;';
                     }
                     
-                    html += `<tr>
-                        <td>${p.id}</td>
-                        <td>${p.firstName} ${p.lastName}</td>
-                        <td>${p.email || '-'}</td>
-                        <td>${statusHtml}</td>
-                        <td>${new Date(p.registeredAt).toLocaleString()}</td>
-                    </tr>`;
+                    html += `
+                        <tr>
+                            <td>${participant.firstName} ${participant.lastName}</td>
+                            <td>${participant.email || 'Non disponible'}</td>
+                            <td style="${statusStyle}">${participant.status === 'registered' ? 'Inscrit' : participant.status === 'canceled' ? 'Annulé' : participant.status}</td>
+                            <td>${new Date(participant.registeredAt).toLocaleString()}</td>
+                        </tr>
+                    `;
                 });
                 
-                html += '</table>';
-                
-                // Ajouter un résumé des statuts
-                html = `
-                    <div class="participant-summary">
-                        <strong>Résumé:</strong> 
-                        <span style="color: green; margin-right: 10px;"><strong>${registeredCount}</strong> inscrits</span> 
-                        <span style="color: red; margin-right: 10px;"><strong>${canceledCount}</strong> annulations</span> 
-                        <span><strong>${participants.length}</strong> participants au total</span>
-                    </div>
-                ` + html;
+                html += `
+                        </tbody>
+                    </table>
+                    <button id="back-to-events-btn" class="refresh-btn" style="margin-top: 15px;">Retour à la liste des événements</button>
+                `;
                 
                 participantsData.innerHTML = html;
                 
+                // Ajouter un gestionnaire d'événement pour le bouton de retour
+                document.getElementById('back-to-events-btn').addEventListener('click', () => {
+                    participantsContainer.style.display = 'none';
+                    eventsData.style.display = 'block';
+                });
+                
             } catch (error) {
                 console.error('Error fetching event participants:', error);
-                participantsData.innerHTML = `<div class="error">Erreur: ${error.message}</div>`;
+                participantsData.innerHTML = `<p class="error">Erreur: ${error.message}</p>`;
             }
         }
         
@@ -761,33 +1157,47 @@
         
         // Fetch database errors
         fetchDbErrorsBtn.addEventListener('click', async () => {
-            const resultEl = document.getElementById('db-errors');
+            if (!checkSuperAdmin()) {
+                alert('Cette fonctionnalité est réservée aux super administrateurs.');
+                return;
+            }
+            
+            const errorsEl = document.getElementById('db-errors');
             
             try {
-                resultEl.textContent = 'Récupération des erreurs...';
+                errorsEl.textContent = 'Récupération des erreurs...';
                 
-                const response = await fetch(`${API_URL}/admin/db/errors`);
+                const response = await fetch(`${API_URL}/admin/db/errors`, {
+                    headers: {
+                        'x-auth-token': token
+                    }
+                });
                 const data = await response.json();
                 
                 if (!response.ok) {
-                    resultEl.textContent = `Erreur: ${data.error || response.statusText}`;
+                    errorsEl.textContent = `Erreur: ${data.error || response.statusText}`;
                     return;
                 }
                 
                 if (data.errors && data.errors.length > 0) {
-                    resultEl.textContent = `Dernières erreurs (${data.errors.length}):\n\n${data.errors.map((err, i) => `${i+1}. ${err.date}: ${err.message}\n   SQL: ${err.query || 'N/A'}\n   Code: ${err.code || 'N/A'}`).join('\n\n')}`;
+                    errorsEl.textContent = `Dernières erreurs (${data.errors.length}):\n\n${data.errors.map((err, i) => `${i+1}. ${err.date}: ${err.message}\n   SQL: ${err.query || 'N/A'}\n   Code: ${err.code || 'N/A'}`).join('\n\n')}`;
                 } else {
-                    resultEl.textContent = 'Aucune erreur récente trouvée.';
+                    errorsEl.textContent = 'Aucune erreur récente trouvée.';
                 }
                 
             } catch (error) {
                 console.error('Error fetching errors:', error);
-                resultEl.textContent = `Erreur de récupération: ${error.message}`;
+                errorsEl.textContent = `Erreur de récupération: ${error.message}`;
             }
         });
         
         // Create database backup
         createBackupBtn.addEventListener('click', async () => {
+            if (!checkSuperAdmin()) {
+                alert('Cette fonctionnalité est réservée aux super administrateurs.');
+                return;
+            }
+            
             const statusEl = document.getElementById('backup-status');
             const resultEl = document.getElementById('backup-result');
             
@@ -795,7 +1205,11 @@
                 statusEl.innerHTML = '<span class="loading">Création de la sauvegarde en cours...</span>';
                 resultEl.style.display = 'none';
                 
-                const response = await fetch(`${API_URL}/admin/db/backup`);
+                const response = await fetch(`${API_URL}/admin/db/backup`, {
+                    headers: {
+                        'x-auth-token': token
+                    }
+                });
                 const data = await response.json();
                 
                 if (!response.ok) {
@@ -814,12 +1228,22 @@
         
         // Fetch database backups
         async function fetchBackups() {
+            if (!checkSuperAdmin()) {
+                const backupsListEl = document.getElementById('backups-list');
+                backupsListEl.innerHTML = '<div class="error">Cette fonctionnalité est réservée aux super administrateurs.</div>';
+                return;
+            }
+            
             const backupsListEl = document.getElementById('backups-list');
             
             try {
                 backupsListEl.innerHTML = '<p>Chargement des sauvegardes...</p>';
                 
-                const response = await fetch(`${API_URL}/admin/db/backups`);
+                const response = await fetch(`${API_URL}/admin/db/backups`, {
+                    headers: {
+                        'x-auth-token': token
+                    }
+                });
                 const data = await response.json();
                 
                 if (!response.ok) {
@@ -865,6 +1289,11 @@
         
         // Handle database restore
         async function handleRestore(event) {
+            if (!checkSuperAdmin()) {
+                alert('Cette fonctionnalité est réservée aux super administrateurs.');
+                return;
+            }
+            
             const filename = event.target.dataset.filename;
             
             if (!confirm(`Êtes-vous sûr de vouloir restaurer la base de données à partir de la sauvegarde "${filename}" ?\n\nCette action est irréversible et écrasera toutes les données actuelles.`)) {
@@ -877,7 +1306,12 @@
                 event.target.disabled = true;
                 event.target.innerText = 'Restauration...';
                 
-                const response = await fetch(`${API_URL}/admin/db/restore/${filename}`);
+                const response = await fetch(`${API_URL}/admin/db/restore/${filename}`, {
+                    headers: {
+                        'x-auth-token': token
+                    }
+                });
+                
                 const data = await response.json();
                 
                 if (!response.ok) {
@@ -925,6 +1359,17 @@
             const duration = document.getElementById('event-duration').value;
             const difficulty = document.getElementById('event-difficulty').value;
             const description = document.getElementById('event-description').value;
+            
+            // Récupérer les nouveaux champs
+            const effortIPB = document.getElementById('event-effortIPB').value;
+            const technicite = document.getElementById('event-technicite').value;
+            const risques = document.getElementById('event-risques').value;
+            const altitudeMin = document.getElementById('event-altitudeMin').value;
+            const altitudeMax = document.getElementById('event-altitudeMax').value;
+            const denivele = document.getElementById('event-denivele').value;
+            const visiorando = document.getElementById('event-visiorando').value;
+            const distance = document.getElementById('event-distance').value;
+            
             const messageEl = document.getElementById('create-event-message');
             
             try {
@@ -933,7 +1378,10 @@
                 
                 const response = await fetch(`${API_URL}/events`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-auth-token': token 
+                    },
                     body: JSON.stringify({ 
                         name, 
                         location, 
@@ -941,7 +1389,15 @@
                         date, 
                         duration: parseInt(duration),
                         difficulty,
-                        description
+                        description,
+                        effortIPB: effortIPB ? parseInt(effortIPB) : null,
+                        technicite: technicite ? parseInt(technicite) : null,
+                        risques: risques ? parseInt(risques) : null,
+                        altitudeMin: altitudeMin ? parseInt(altitudeMin) : null,
+                        altitudeMax: altitudeMax ? parseInt(altitudeMax) : null,
+                        denivele: denivele ? parseInt(denivele) : null,
+                        visiorando: visiorando || null,
+                        distance: distance ? parseFloat(distance) : null
                     })
                 });
                 
@@ -985,7 +1441,11 @@
                 button.disabled = true;
                 
                 const response = await fetch(`${API_URL}/admin/notify-event/${eventId}`, {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-auth-token': token
+                    }
                 });
                 
                 const data = await response.json();
@@ -1030,7 +1490,10 @@
                 
                 const response = await fetch(`${API_URL}/auth/test-email`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-auth-token': token
+                    },
                     body: JSON.stringify({ email })
                 });
                 
@@ -1085,9 +1548,6 @@
             }
         }
         
-        // Initial data load
-        fetchData();
-        
         // Add event listener for the apply filters button
         document.getElementById('apply-filters').addEventListener('click', () => {
             const dateFrom = document.getElementById('filter-dateFrom').value;
@@ -1095,6 +1555,53 @@
             const difficulty = document.getElementById('filter-difficulty').value;
             
             fetchEventsWithFilters({ dateFrom, dateTo, difficulty });
+        });
+        
+        // Handle admin privileges form submission
+        document.getElementById('admin-privileges-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('admin-email').value;
+            const role = document.getElementById('admin-role').value;
+            const messageEl = document.getElementById('privileges-message');
+            
+            try {
+                messageEl.textContent = 'Mise à jour des privilèges en cours...';
+                messageEl.className = '';
+                
+                const response = await fetch(`${API_URL}/admin/user/privileges`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-auth-token': token
+                    },
+                    body: JSON.stringify({ 
+                        email,
+                        role
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    messageEl.textContent = data.message || 'Erreur lors de la mise à jour des privilèges';
+                    messageEl.className = 'error';
+                    return;
+                }
+                
+                messageEl.textContent = 'Privilèges mis à jour avec succès!';
+                messageEl.className = 'success';
+                
+                // Reset form
+                document.getElementById('admin-privileges-form').reset();
+                
+                // Refresh users data
+                fetchData();
+                
+            } catch (error) {
+                console.error('Update privileges error:', error);
+                messageEl.textContent = error.message || 'Erreur de connexion au serveur';
+                messageEl.className = 'error';
+            }
         });
         
         // Admin register form submission
@@ -1112,7 +1619,10 @@
                 
                 const response = await fetch(`${API_URL}/auth/register`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-auth-token': token
+                    },
                     body: JSON.stringify({ firstName, lastName, email, password })
                 });
                 
@@ -1156,7 +1666,10 @@
                 
                 const response = await fetch(`${API_URL}/auth/verify`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-auth-token': token
+                    },
                     body: JSON.stringify({ email, code })
                 });
                 
@@ -1183,6 +1696,416 @@
                 console.error('Verification error:', error);
                 messageEl.textContent = error.message || 'Erreur de connexion au serveur';
                 messageEl.className = 'error';
+            }
+        });
+        
+        // Logout button click handler
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('userData');
+            window.location.href = '/';
+        });
+        
+        // Fetch an event for editing
+        async function fetchEventForEdit(eventId) {
+            try {
+                const response = await fetch(`${API_URL}/events/${eventId}`, {
+                    headers: {
+                        'x-auth-token': token
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.statusText}`);
+                }
+                
+                const event = await response.json();
+                
+                // Show and navigate to the edit tab
+                const editTab = document.querySelector('.tab[data-tab="edit-event"]');
+                editTab.style.display = 'block';
+                editTab.click();
+                
+                // Format date for datetime-local input
+                const eventDate = new Date(event.date);
+                const formattedDate = eventDate.toISOString().slice(0, 16); // Format YYYY-MM-DDTHH:MM
+                
+                // Fill the form fields
+                document.getElementById('edit-event-id').value = event.id;
+                document.getElementById('edit-event-name').value = event.name || '';
+                document.getElementById('edit-event-location').value = event.location || '';
+                document.getElementById('edit-event-startPoint').value = event.startPoint || '';
+                document.getElementById('edit-event-date').value = formattedDate;
+                document.getElementById('edit-event-duration').value = event.duration || '';
+                document.getElementById('edit-event-difficulty').value = event.difficulty || '';
+                document.getElementById('edit-event-description').value = event.description || '';
+                
+                // Technical fields
+                document.getElementById('edit-event-effortIPB').value = event.effortIPB || '';
+                document.getElementById('edit-event-technicite').value = event.technicite || '';
+                document.getElementById('edit-event-risques').value = event.risques || '';
+                document.getElementById('edit-event-altitudeMin').value = event.altitudeMin || '';
+                document.getElementById('edit-event-altitudeMax').value = event.altitudeMax || '';
+                document.getElementById('edit-event-denivele').value = event.denivele || '';
+                document.getElementById('edit-event-visiorando').value = event.visiorando || '';
+                document.getElementById('edit-event-distance').value = event.distance || '';
+                
+            } catch (error) {
+                console.error('Error fetching event for edit:', error);
+                alert(`Erreur lors de la récupération des données de l'événement: ${error.message}`);
+            }
+        }
+        
+        // Cancel edit and return to events list
+        document.getElementById('cancel-edit-btn').addEventListener('click', () => {
+            // Hide the edit tab and go back to events tab
+            document.querySelector('.tab[data-tab="edit-event"]').style.display = 'none';
+            document.querySelector('.tab[data-tab="events"]').click();
+        });
+        
+        // Handle edit event form submission
+        document.getElementById('edit-event-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const eventId = document.getElementById('edit-event-id').value;
+            const name = document.getElementById('edit-event-name').value;
+            const location = document.getElementById('edit-event-location').value;
+            const startPoint = document.getElementById('edit-event-startPoint').value;
+            const date = document.getElementById('edit-event-date').value;
+            const duration = document.getElementById('edit-event-duration').value;
+            const difficulty = document.getElementById('edit-event-difficulty').value;
+            const description = document.getElementById('edit-event-description').value;
+            
+            // Technical fields
+            const effortIPB = document.getElementById('edit-event-effortIPB').value;
+            const technicite = document.getElementById('edit-event-technicite').value;
+            const risques = document.getElementById('edit-event-risques').value;
+            const altitudeMin = document.getElementById('edit-event-altitudeMin').value;
+            const altitudeMax = document.getElementById('edit-event-altitudeMax').value;
+            const denivele = document.getElementById('edit-event-denivele').value;
+            const visiorando = document.getElementById('edit-event-visiorando').value;
+            const distance = document.getElementById('edit-event-distance').value;
+            
+            const messageEl = document.getElementById('edit-event-message');
+            
+            try {
+                messageEl.textContent = 'Mise à jour de l\'événement en cours...';
+                messageEl.className = '';
+                
+                const response = await fetch(`${API_URL}/events/${eventId}`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-auth-token': token
+                    },
+                    body: JSON.stringify({ 
+                        name, 
+                        location, 
+                        startPoint, 
+                        date, 
+                        duration: parseInt(duration),
+                        difficulty,
+                        description,
+                        effortIPB: effortIPB ? parseInt(effortIPB) : null,
+                        technicite: technicite ? parseInt(technicite) : null,
+                        risques: risques ? parseInt(risques) : null,
+                        altitudeMin: altitudeMin ? parseInt(altitudeMin) : null,
+                        altitudeMax: altitudeMax ? parseInt(altitudeMax) : null,
+                        denivele: denivele ? parseInt(denivele) : null,
+                        visiorando: visiorando || null,
+                        distance: distance ? parseFloat(distance) : null
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.message || 'Erreur lors de la mise à jour de l\'événement');
+                }
+                
+                messageEl.textContent = 'Événement mis à jour avec succès!';
+                messageEl.className = 'success';
+                
+                // Wait a moment then refresh events list and go back to it
+                setTimeout(() => {
+                    // Hide the edit tab
+                    document.querySelector('.tab[data-tab="edit-event"]').style.display = 'none';
+                    
+                    // Refresh data and show events tab
+                    fetchData();
+                    document.querySelector('.tab[data-tab="events"]').click();
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Error updating event:', error);
+                messageEl.textContent = error.message || 'Erreur serveur lors de la mise à jour';
+                messageEl.className = 'error';
+            }
+        });
+        
+        // Fonction pour afficher la boîte de dialogue modale de changement de mot de passe
+        function showPasswordChangeModal(email) {
+            const modal = document.getElementById('password-modal');
+            const emailElement = document.getElementById('password-modal-email');
+            const userEmailInput = document.getElementById('password-user-email');
+            
+            emailElement.textContent = `Utilisateur: ${email}`;
+            userEmailInput.value = email;
+            
+            // Réinitialiser le formulaire et les messages
+            document.getElementById('password-change-form').reset();
+            document.getElementById('password-change-message').textContent = '';
+            document.getElementById('password-change-message').className = '';
+            
+            // Afficher la boîte de dialogue modale
+            modal.style.display = 'block';
+        }
+        
+        // Fermeture de la boîte de dialogue modale
+        document.querySelector('.close-modal').addEventListener('click', () => {
+            console.log('Bouton fermer cliqué');
+            document.getElementById('password-modal').style.display = 'none';
+        });
+        
+        // Supprimer ce gestionnaire d'événements dupliqué
+        // document.getElementById('cancel-password-change').addEventListener('click', () => {
+        //     document.getElementById('password-modal').style.display = 'none';
+        // });
+        
+        // Cliquer à l'extérieur de la boîte de dialogue modale pour la fermer
+        window.addEventListener('click', (event) => {
+            const modal = document.getElementById('password-modal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+        
+        // Gérer la soumission du formulaire de changement de mot de passe
+        document.getElementById('password-change-form').addEventListener('submit', async (e) => {
+            console.log('Formulaire de changement de mot de passe soumis');
+            e.preventDefault();
+            
+            const email = document.getElementById('password-user-email').value;
+            const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            const messageEl = document.getElementById('password-change-message');
+            
+            console.log('Valeurs du formulaire:', { 
+                email, 
+                passwordLength: newPassword.length, 
+                confirmPasswordLength: confirmPassword.length,
+                passwordsMatch: newPassword === confirmPassword
+            });
+            
+            // Vérifier que les mots de passe correspondent
+            if (newPassword !== confirmPassword) {
+                messageEl.textContent = 'Les mots de passe ne correspondent pas.';
+                messageEl.className = 'error';
+                return;
+            }
+            
+            try {
+                messageEl.textContent = 'Changement du mot de passe en cours...';
+                messageEl.className = '';
+                
+                console.log('Envoi de la requête de changement de mot de passe:', {
+                    url: `${API_URL}/auth/change-password`,
+                    method: 'POST',
+                    email: email,
+                    token: token ? token.substring(0, 10) + '...' : 'absent'
+                });
+                
+                const response = await fetch(`${API_URL}/auth/change-password`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-auth-token': token
+                    },
+                    body: JSON.stringify({
+                        email,
+                        newPassword
+                    })
+                });
+                
+                console.log('Réponse brute reçue:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: Object.fromEntries([...response.headers])
+                });
+                
+                const data = await response.json();
+                console.log('Données de réponse:', data);
+                
+                if (!response.ok) {
+                    const errorMsg = `Erreur ${response.status}: ${data.message || 'Erreur lors du changement de mot de passe'}`;
+                    console.error(errorMsg, data);
+                    throw new Error(errorMsg);
+                }
+                
+                messageEl.textContent = 'Mot de passe changé avec succès!';
+                messageEl.className = 'success';
+                
+                // Fermer la boîte de dialogue modale après un court délai
+                setTimeout(() => {
+                    document.getElementById('password-modal').style.display = 'none';
+                    // Actualiser les données
+                    fetchData();
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Error changing password:', error);
+                messageEl.textContent = error.message || 'Erreur lors du changement de mot de passe';
+                messageEl.className = 'error';
+            }
+        });
+        
+        // Correction du bouton d'annulation
+        document.getElementById('cancel-password-change').addEventListener('click', function() {
+            console.log('Bouton annuler cliqué');
+            document.getElementById('password-modal').style.display = 'none';
+        });
+        
+        // Initial data load
+        fetchData();
+    </script>
+    
+    <!-- Modal pour changer le mot de passe -->
+    <div id="password-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 1000; overflow: auto;">
+        <div class="modal-content" style="background-color: #fff; margin: 15% auto; padding: 20px; border-radius: 8px; width: 400px; max-width: 80%; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+            <span class="close-modal" style="float: right; font-size: 28px; font-weight: bold; cursor: pointer; color: #aaa;">&times;</span>
+            <h3>Changer le mot de passe</h3>
+            <p id="password-modal-email" style="margin-bottom: 15px; color: #666;"></p>
+            <form id="password-change-form">
+                <input type="hidden" id="password-user-email">
+                <div style="margin-bottom: 15px;">
+                    <label for="new-password" style="display: block; margin-bottom: 5px;">Nouveau mot de passe :</label>
+                    <input type="password" id="new-password" placeholder="Minimum 6 caractères" minlength="6" required style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label for="confirm-password" style="display: block; margin-bottom: 5px;">Confirmer le mot de passe :</label>
+                    <input type="password" id="confirm-password" placeholder="Confirmation du mot de passe" minlength="6" required style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div id="password-change-message" style="margin-bottom: 15px;"></div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" id="cancel-password-change" class="test-btn" style="padding: 8px 15px;">Annuler</button>
+                    <button type="submit" id="save-password-change" class="refresh-btn" style="padding: 8px 15px;">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // Vérifie si les boutons de la modale sont correctement initialisés
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM complètement chargé - Vérification des boutons de la modale');
+            const cancelBtn = document.getElementById('cancel-password-change');
+            const saveBtn = document.getElementById('save-password-change');
+            const modal = document.getElementById('password-modal');
+            
+            if (cancelBtn) {
+                console.log('Bouton Cancel trouvé dans le DOM');
+                // Assurons-nous que le bouton d'annulation fonctionne
+                cancelBtn.addEventListener('click', function() {
+                    console.log('Bouton annuler cliqué - Version améliorée');
+                    if (modal) {
+                        modal.style.display = 'none';
+                    } else {
+                        console.error('Modal non trouvée pour la cacher');
+                    }
+                });
+            } else {
+                console.error('Bouton Cancel NON trouvé dans le DOM!');
+            }
+            
+            if (saveBtn) {
+                console.log('Bouton Save trouvé dans le DOM');
+                // Ajouter un gestionnaire d'événements supplémentaire au bouton d'enregistrement
+                saveBtn.addEventListener('click', function(event) {
+                    console.log('Bouton enregistrer cliqué directement');
+                    
+                    // Empêcher la soumission par défaut du formulaire
+                    event.preventDefault();
+                    
+                    const email = document.getElementById('password-user-email').value;
+                    const newPassword = document.getElementById('new-password').value;
+                    const confirmPassword = document.getElementById('confirm-password').value;
+                    const messageEl = document.getElementById('password-change-message');
+                    
+                    console.log('Valeurs du formulaire (via clic direct):', { 
+                        email, 
+                        passwordLength: newPassword ? newPassword.length : 0,
+                        confirmPasswordLength: confirmPassword ? confirmPassword.length : 0,
+                        passwordsMatch: newPassword === confirmPassword
+                    });
+                    
+                    // Vérifier que les champs ne sont pas vides
+                    if (!email || !newPassword || !confirmPassword) {
+                        messageEl.textContent = 'Tous les champs sont requis';
+                        messageEl.className = 'error';
+                        return;
+                    }
+                    
+                    // Vérifier que les mots de passe correspondent
+                    if (newPassword !== confirmPassword) {
+                        messageEl.textContent = 'Les mots de passe ne correspondent pas';
+                        messageEl.className = 'error';
+                        return;
+                    }
+                    
+                    // Effectuer la requête AJAX manuellement
+                    messageEl.textContent = 'Changement du mot de passe en cours...';
+                    messageEl.className = '';
+                    
+                    console.log('Tentative d\'envoi de requête POST directe');
+                    
+                    fetch(`${API_URL}/auth/change-password`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-auth-token': token
+                        },
+                        body: JSON.stringify({
+                            email,
+                            newPassword
+                        })
+                    })
+                    .then(response => {
+                        console.log('Réponse directe reçue:', {
+                            status: response.status,
+                            statusText: response.statusText
+                        });
+                        return response.json().then(data => ({ status: response.status, data }));
+                    })
+                    .then(({ status, data }) => {
+                        console.log('Données de réponse directe:', data);
+                        
+                        if (status >= 200 && status < 300) {
+                            messageEl.textContent = 'Mot de passe changé avec succès!';
+                            messageEl.className = 'success';
+                            
+                            // Fermer la boîte de dialogue modale après un court délai
+                            setTimeout(() => {
+                                modal.style.display = 'none';
+                                // Actualiser les données
+                                fetchData();
+                            }, 1500);
+                        } else {
+                            throw new Error(data.message || 'Erreur lors du changement de mot de passe');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erreur de requête directe:', error);
+                        messageEl.textContent = error.message || 'Erreur lors du changement de mot de passe';
+                        messageEl.className = 'error';
+                    });
+                });
+            } else {
+                console.error('Bouton Save NON trouvé dans le DOM!');
+            }
+            
+            if (modal) {
+                console.log('Modal trouvée dans le DOM');
+            } else {
+                console.error('Modal NON trouvée dans le DOM!');
             }
         });
     </script>
