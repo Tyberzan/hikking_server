@@ -2,6 +2,19 @@
 
 Une API RESTful pour gérer des événements de randonnée, des profils utilisateurs et les participations aux événements.
 
+## Dernières mises à jour
+
+### Version 1.2.0 (23/05/2024)
+- **Ajout du rôle Organisateur** : Un nouveau champ booléen "organizer" a été ajouté à la table des utilisateurs pour identifier les utilisateurs autorisés à créer des événements.
+- **Interface de gestion des organisateurs** : Un toggle switch a été ajouté dans l'interface d'administration pour activer/désactiver facilement le statut d'organisateur.
+- **Badge Organisateur** : Les utilisateurs ayant le statut d'organisateur voient un badge "Organisateur" affiché à côté de leur nom dans l'interface.
+
+### Version 1.1.0 (22/05/2024)
+- **Correction du formulaire de changement de mot de passe dans l'interface d'administration** : Résolution d'un problème où la requête POST n'était pas envoyée lors du clic sur le bouton Enregistrer.
+- **Amélioration de l'authentification admin** : Les informations administrateur sont maintenant incluses dans le token JWT pour une meilleure sécurité.
+- **Ajout de logs détaillés** : Des logs plus complets pour faciliter le débogage des problèmes d'authentification.
+- **Optimisation des requêtes asynchrones** : Transformation des callbacks en promesses pour une meilleure gestion des erreurs.
+
 ## Installation et Configuration
 
 ### Prérequis
@@ -59,6 +72,9 @@ L'application utilise SQLite avec la structure suivante :
 | profilePicture | TEXT | Chemin de l'image de profil |
 | verificationCode | TEXT | Code pour la vérification de l'email |
 | isVerified | BOOLEAN | Statut de vérification (0/1) |
+| admin | BOOLEAN | Droits administrateur (0/1) |
+| superAdmin | BOOLEAN | Droits super administrateur (0/1) |
+| organizer | BOOLEAN | Droits d'organisateur (0/1) |
 | createdAt | DATETIME | Date de création du compte |
 
 ### Table `events`

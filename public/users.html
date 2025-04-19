@@ -137,6 +137,16 @@
         .admin-btn:hover {
             background-color: #d35400;
         }
+        .organizer-badge {
+            display: inline-block;
+            background-color: #27ae60;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body>
@@ -209,6 +219,14 @@
             // Display user name
             if (userData && userData.firstName) {
                 userNameEl.textContent = `${userData.firstName} ${userData.lastName || ''}`;
+                
+                // Afficher un badge organisateur si l'utilisateur est organisateur
+                if (userData.organizer) {
+                    const organizerBadge = document.createElement('span');
+                    organizerBadge.textContent = "Organisateur";
+                    organizerBadge.className = "organizer-badge";
+                    userNameEl.appendChild(organizerBadge);
+                }
             }
             
             // Check admin status and show/hide admin button

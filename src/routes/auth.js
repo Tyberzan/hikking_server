@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const userService = require('../services/userService');
 const emailService = require('../services/emailService');
+const auth = require('../middleware/auth');
 const router = express.Router();
 
 // @route   POST /api/auth/test-email
@@ -159,7 +160,10 @@ router.post(
       // Create and return JWT token
       const payload = {
         user: {
-          id: user.id
+          id: user.id,
+          admin: user.admin,
+          superAdmin: user.superAdmin,
+          organizer: user.organizer
         }
       };
 
@@ -183,6 +187,100 @@ router.post(
       );
     } catch (error) {
       console.error('Error in login route:', error);
+      res.status(500).json({ message: 'Erreur serveur' });
+    }
+  }
+);
+
+// @route   POST /api/auth/change-password
+// @desc    Change user password (admin only)
+// @access  Private
+router.post(
+  '/change-password',
+  [
+    auth, // Middleware d'authentification
+    body('email', 'Veuillez entrer un email valide').isEmail(),
+    body('newPassword', 'Le nouveau mot de passe doit contenir au moins 6 caractères').isLength({ min: 6 })
+  ],
+  async (req, res) => {
+    console.log('Requête de changement de mot de passe reçue:', { 
+      email: req.body.email,
+      userAuth: req.user
+    });
+    
+    // Check for validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.log('Erreurs de validation:', errors.array());
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      // Vérifier les droits d'admin
+      if (!req.user.admin && !req.user.superAdmin) {
+        console.log('Accès refusé - utilisateur non admin:', req.user);
+        return res.status(403).json({ message: 'Accès non autorisé. Privilèges administrateur requis.' });
+      }
+      
+      const { email, newPassword } = req.body;
+      console.log('Changement de mot de passe pour:', email);
+      
+      // Check if user exists
+      const user = await userService.getUserByEmail(email);
+      if (!user) {
+        console.log('Utilisateur non trouvé:', email);
+        return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      }
+      console.log('Utilisateur trouvé:', { id: user.id, email: user.email });
+
+      // Hash the new password
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(newPassword, salt);
+      console.log('Mot de passe hashé généré');
+
+      // Update password in database
+      const db = require('../db');
+      console.log('Base de données chargée');
+      
+      // Create a promise for the database operation
+      const updatePassword = () => {
+        console.log('Début de l\'opération updatePassword()');
+        return new Promise((resolve, reject) => {
+          const sql = 'UPDATE users SET password = ? WHERE email = ?';
+          console.log('Exécution de la requête SQL:', sql);
+          db.run(sql, [hashedPassword, email], function(err) {
+            if (err) {
+              console.error('Erreur SQL:', err);
+              return reject(err);
+            }
+            console.log('Résultat de la mise à jour:', this.changes, 'lignes affectées');
+            resolve(this.changes);
+          });
+        });
+      };
+      
+      try {
+        console.log('Appel de updatePassword()');
+        const changes = await updatePassword();
+        console.log('Résultat de updatePassword():', changes);
+        
+        if (changes === 0) {
+          console.log('Aucune modification effectuée');
+          return res.status(404).json({ message: 'Utilisateur non trouvé ou aucune modification effectuée' });
+        }
+        
+        console.log(`Mot de passe modifié avec succès pour l'utilisateur ${email}`);
+        res.json({
+          success: true,
+          message: 'Mot de passe mis à jour avec succès'
+        });
+      } catch (err) {
+        console.error('Error updating password:', err);
+        return res.status(500).json({ message: 'Erreur serveur lors de la mise à jour du mot de passe' });
+      }
+      
+    } catch (error) {
+      console.error('Error in change-password route:', error);
       res.status(500).json({ message: 'Erreur serveur' });
     }
   }

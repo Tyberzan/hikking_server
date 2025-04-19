@@ -9,7 +9,7 @@ const emailService = require('../services/emailService');
 
 // @route   POST /api/events
 // @desc    Create a new hiking event
-// @access  Private
+// @access  Private (organizer or admin)
 router.post(
   '/',
   [
@@ -21,7 +21,7 @@ router.post(
     body('duration', 'La durée doit être un nombre').optional().isNumeric(),
     body('difficulty', 'La difficulté doit être facile, moyenne ou difficile').optional().isIn(['facile', 'moyenne', 'difficile']),
     // Validation des nouveaux champs
-    body('effortIPB', 'L\'effort IPB doit être un nombre entre 1 et 5').optional().isInt({ min: 1, max: 200 }),
+    body('effortIPB', 'L\'effort IPB doit être un nombre entre 1 et 200').optional().isInt({ min: 1, max: 200 }),
     body('technicite', 'La technicité doit être un nombre entre 1 et 5').optional().isInt({ min: 1, max: 5 }),
     body('risques', 'Les risques doivent être un nombre entre 1 et 5').optional().isInt({ min: 1, max: 5 }),
     body('altitudeMin', 'L\'altitude minimum doit être un nombre positif').optional().isInt({ min: 0 }),
@@ -38,6 +38,13 @@ router.post(
     }
 
     try {
+      // Vérifier si l'utilisateur est un organisateur ou un admin
+      if (!req.user.organizer && !req.user.admin && !req.user.superAdmin) {
+        return res.status(403).json({ 
+          message: 'Accès non autorisé. Vous devez être organisateur ou administrateur pour créer un événement.' 
+        });
+      }
+
       // Create event
       const newEvent = await eventService.createEvent(req.body, req.user.id);
       

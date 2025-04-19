@@ -69,7 +69,7 @@ const userService = {
   getUserByEmail: (email) => {
     return new Promise((resolve, reject) => {
       const sql = `SELECT id, email, password, firstName, lastName, profilePicture, 
-                  isVerified, admin, superAdmin FROM users WHERE email = ?`;
+                  isVerified, admin, superAdmin, organizer FROM users WHERE email = ?`;
                   
       db.get(sql, [email], (err, user) => {
         if (err) return reject(err);
@@ -84,7 +84,7 @@ const userService = {
   getUserById: (id) => {
     return new Promise((resolve, reject) => {
       const sql = `SELECT id, email, firstName, lastName, profilePicture, 
-                  isVerified, createdAt, admin, superAdmin FROM users WHERE id = ?`;
+                  isVerified, createdAt, admin, superAdmin, organizer FROM users WHERE id = ?`;
                   
       db.get(sql, [id], (err, user) => {
         if (err) return reject(err);
@@ -143,6 +143,30 @@ const userService = {
             past: pastEvents || [],
             future: futureEvents || []
           });
+        });
+      });
+    });
+  },
+  
+  // Update user organizer status
+  updateOrganizerStatus: (email, isOrganizer) => {
+    return new Promise((resolve, reject) => {
+      const sql = `UPDATE users SET organizer = ? WHERE email = ?`;
+      
+      db.run(sql, [isOrganizer ? 1 : 0, email], function(err) {
+        if (err) {
+          console.error('Erreur lors de la mise à jour du statut d\'organisateur:', err);
+          return reject(err);
+        }
+        
+        if (this.changes === 0) {
+          return reject(new Error('Utilisateur non trouvé'));
+        }
+        
+        resolve({
+          success: true,
+          message: `Statut d'organisateur ${isOrganizer ? 'activé' : 'désactivé'} pour ${email}`,
+          changes: this.changes
         });
       });
     });

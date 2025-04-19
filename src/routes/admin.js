@@ -504,4 +504,53 @@ router.post('/user/privileges', async (req, res) => {
   }
 });
 
+// @route   POST /api/admin/user/organizer
+// @desc    Update user organizer status
+// @access  Public (for testing purposes only, should be secured in production)
+router.post('/user/organizer', async (req, res) => {
+  try {
+    const { email, isOrganizer } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email est requis' });
+    }
+    
+    if (typeof isOrganizer !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'isOrganizer doit être un booléen' });
+    }
+    
+    // Vérifier que l'utilisateur existe
+    const checkUserSql = 'SELECT id FROM users WHERE email = ?';
+    
+    db.get(checkUserSql, [email], async (err, user) => {
+      if (err) {
+        logDbError(err, 'Check user by email');
+        return res.status(500).json({ success: false, message: 'Erreur de base de données' });
+      }
+      
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+      }
+      
+      try {
+        // Mettre à jour le statut d'organisateur
+        const userService = require('../services/userService');
+        const result = await userService.updateOrganizerStatus(email, isOrganizer);
+        
+        res.json({ 
+          success: true, 
+          message: result.message,
+          isOrganizer: isOrganizer
+        });
+      } catch (error) {
+        console.error('Error updating organizer status:', error);
+        res.status(500).json({ success: false, message: 'Erreur lors de la mise à jour du statut d\'organisateur' });
+      }
+    });
+  } catch (error) {
+    console.error('Error in organizer status update:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
 module.exports = router; 
